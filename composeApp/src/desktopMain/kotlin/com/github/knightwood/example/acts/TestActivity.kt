@@ -1,4 +1,4 @@
-package com.github.knightwood.example
+package com.github.knightwood.example.acts
 
 import androidx.compose.material3.Text
 import androidx.lifecycle.*
@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.compose.desktop.runtime.activity.ComponentActivity
 import androidx.compose.desktop.runtime.activity.Intent
 import androidx.compose.desktop.runtime.viewmodel.viewModels
+import com.github.knightwood.example.ui.TestUI
 import com.github.knightwood.slf4j.kotlin.logger
 import kotlin.random.Random
 import kotlin.reflect.KClass
@@ -43,13 +44,7 @@ open class TestActivity : ComponentActivity() {
     override fun onCreate() {
         super.onCreate()
         setContentView {
-            if (intent.data == null) {
-                test(null)
-            } else {
-                ComposeView {
-                    Text("空白")
-                }
-            }
+            TestUI(intent)
         }
         logger.info("onCreate：vm参数：" + vm.i)
         logger.info("onCreate：vm：" + vm)

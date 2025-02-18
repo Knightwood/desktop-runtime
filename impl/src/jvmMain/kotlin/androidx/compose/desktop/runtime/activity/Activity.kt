@@ -56,6 +56,11 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     val context get() = this
 
+    /**
+     * 1. activity将自己注册进[ActivityManager]
+     * 2. 开始自己的生命周期
+     * 3. 生成mWindow，并调用[onCreate]方法
+     */
     internal fun attach(
         context: IContext,
         intent: Intent,
@@ -98,7 +103,13 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     open fun onStart() {}
 
     fun setContentView(content: @Composable () -> Unit) {
-        mWindow.invoke(content)
+        if (!this::mWindow.isInitialized) {
+            throw IllegalStateException("window is not initialized")
+        }
+        if (this.mWindow.content != null) {
+            throw IllegalStateException("window content is not null, setContentView can only call once time")
+        }
+        mWindow(content)
     }
 
     /**
@@ -132,7 +143,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         ActivityManager.remove(uuid)
         if (!intent.deAttach) { // 单application模式，关闭窗口
             if (intent.exitAppWhenEmpty) {
-                windowManager().closeWindow(mWindow)
+                exitApp()
             } else {
                 windowManager().deAttachWindow(mWindow)
             }

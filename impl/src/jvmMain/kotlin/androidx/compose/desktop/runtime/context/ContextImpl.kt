@@ -35,6 +35,9 @@ open class ContextImpl() : IContext() {
         startActivityInner(cls, intent, block)
     }
 
+    /**
+     * 在[ActivityManager.scope]中生成并运行activity，如此，activity就跑在ui（主）线程上
+     */
     private fun startActivityInner(
         cls: Class<out Activity>,
         intent: Intent,

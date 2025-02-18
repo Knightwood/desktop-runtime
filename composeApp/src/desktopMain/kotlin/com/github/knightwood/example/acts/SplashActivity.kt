@@ -1,4 +1,4 @@
-package com.github.knightwood.example
+package com.github.knightwood.example.acts
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +18,7 @@ class SplashActivity : Activity() {
         setContentView {
             LaunchedEffect(Unit) {
                 delay(600) // 延迟500毫秒
-                startActivity(TestActivity::class.java, "Hello World")
+                startActivity(TestActivity::class.java,)
                 finish()
             }
             val state: WindowState =

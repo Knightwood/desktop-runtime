@@ -17,6 +17,10 @@ open class ContextWrapper : IContext() {
 
     override fun activityManager(): ActivityManager = mBase.activityManager()
 
+    override fun exitApp() {
+        mBase.exitApp()
+    }
+
     override fun startActivity(
         cls: Class<out Activity>,
         data: Any?
