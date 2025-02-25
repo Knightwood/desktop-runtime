@@ -7,6 +7,8 @@ import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.activity.Intent
 import androidx.compose.desktop.runtime.context.ContextImpl
 import androidx.compose.desktop.runtime.context.ContextWrapper
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.window.ApplicationScope
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.logger
@@ -149,12 +151,14 @@ fun startApplication(
     mainActivity: Class<out Activity>,
     applicationClass: Class<out Application> = Application::class.java,
     vararg aware: Aware,
+    scope: @Composable ApplicationScope.() -> Unit = {},
     intentBuilder: (Intent.() -> Unit)? = null
 ) {
     synchronized(lock) {
         if (applicationInternal.fake) {
             applicationInternal = applicationClass.getDeclaredConstructor().newInstance().also {
                 it.prepare(aware)
+                it.windowManager().content = scope
                 it.startMainActivity(mainActivity, intentBuilder)
                 it.exit()//如果ui线程、那些协程都结束了，自然会走到这一步
             }

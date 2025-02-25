@@ -1,5 +1,6 @@
 package androidx.compose.desktop.runtime.window
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,6 +18,7 @@ class WindowManager private constructor() {
 
     private val windows: SnapshotStateList<DxWindow> = SnapshotStateList()
     private val exit: MutableState<Boolean> = mutableStateOf(false)
+    var content: (@Composable ApplicationScope.() -> Unit)? = null
 
     /**
      * 调用application方法，监听windows列表变化，并创建窗口内容。
@@ -27,8 +29,9 @@ class WindowManager private constructor() {
         //调用此函数，主线程就陷入阻塞了，所以需要注意。
         //exitProcessOnExit = false 避免主线程结束
         application(exitProcessOnExit = false) {
+            this@WindowManager.content?.invoke(this)
             windows.forEach { current ->
-                current.windowExec()
+                current.windowExec(this)
             }
         }
     }

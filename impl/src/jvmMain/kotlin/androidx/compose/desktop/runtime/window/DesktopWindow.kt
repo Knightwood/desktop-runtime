@@ -5,6 +5,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.window.application
 import androidx.compose.desktop.runtime.activity.Activity
+import androidx.compose.ui.window.ApplicationScope
 
 /**
  * @param activity
@@ -32,7 +33,7 @@ class DesktopWindow(
      * 1. 如果设置为多application，则直接使用新的application运行ui界面
      * 2. 如果设置为单application，则将自己注册进[WindowManager]
      */
-    operator fun invoke(content: @Composable() (() -> Unit)) {
+    operator fun invoke(content: @Composable() (ApplicationScope.() -> Unit)) {
         this.content = content
         if (deAttach) {
             application {

@@ -5,16 +5,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.key.KeyEvent
-import androidx.compose.ui.window.FrameWindowScope
-import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.WindowState
-import androidx.compose.ui.window.rememberWindowState
 import androidx.lifecycle.*
 import androidx.lifecycle.Lifecycle.Event.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.desktop.runtime.context.IContext
 import androidx.compose.desktop.runtime.context.ThemedContext
 import androidx.compose.desktop.runtime.window.DesktopWindow
+import androidx.compose.ui.window.*
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -76,6 +73,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
         lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
         onCreate()
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
     }
 
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
@@ -102,7 +100,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 
     open fun onStart() {}
 
-    fun setContentView(content: @Composable () -> Unit) {
+    fun setContentView(content: @Composable ApplicationScope.() -> Unit) {
         if (!this::mWindow.isInitialized) {
             throw IllegalStateException("window is not initialized")
         }

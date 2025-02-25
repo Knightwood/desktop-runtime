@@ -6,6 +6,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.compose.desktop.runtime.viewmodel.createVM
+import androidx.lifecycle.viewmodel.MutableCreationExtras
 import kotlin.reflect.KClass
 
 /**
@@ -143,5 +144,13 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
             }
         }
     }
+
+    public override val defaultViewModelCreationExtras: CreationExtras
+        get() {
+            val extras = MutableCreationExtras()
+            extras[SAVED_STATE_REGISTRY_OWNER_KEY] = this
+            extras[VIEW_MODEL_STORE_OWNER_KEY] = this
+            return extras
+        }
 
 }
