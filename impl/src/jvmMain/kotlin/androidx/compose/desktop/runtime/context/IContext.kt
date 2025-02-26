@@ -13,6 +13,9 @@ abstract class IContext {
     abstract fun windowManager(): WindowManager
     abstract fun activityManager(): ActivityManager
 
+    /**
+     * 亲手结束软件生命
+     */
     open fun exitApp() {}
 
     open fun startActivity(

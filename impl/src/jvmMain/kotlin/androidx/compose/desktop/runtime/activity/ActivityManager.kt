@@ -26,6 +26,9 @@ object ActivityManager {
         return activityMap[uuid]
     }
 
+    /**
+     * 如果activity使用标准模式，使用此方法将只能找到最早添加的实例
+     */
     operator fun get(cls: Class<out Activity>): Activity? {
         return activityMap.values.find { it.javaClass == cls }
     }

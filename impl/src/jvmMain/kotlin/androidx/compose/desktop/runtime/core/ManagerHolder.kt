@@ -1,12 +1,18 @@
 package androidx.compose.desktop.runtime.core
 
 import androidx.compose.desktop.runtime.activity.ActivityManager
+import androidx.compose.desktop.runtime.domain.RunningState
 import androidx.compose.desktop.runtime.window.WindowManager
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
  * 持有所有的管理工具，使用[get]函数获取管理工具
  */
 internal object ManagerHolder {
+    /**
+     * 程序的运行状态
+     */
+    var runningState: MutableSharedFlow<RunningState> = MutableSharedFlow()
     private val map: MutableMap<String, Any> = mutableMapOf()
 
     /**

@@ -9,13 +9,13 @@ import androidx.compose.ui.window.ApplicationScope
 
 /**
  * @param activity
- * @param deAttach true：
+ * @param multiApplication true：
  *    window和application一一对应；false：在一个application中创建多个window。
  */
 class DesktopWindow(
     val activity: Activity,
     private val windowManager: WindowManager,
-    private val deAttach: Boolean = false,
+    private val multiApplication: Boolean = false,
 ) : DxWindow() {
     /**
      * 这只是一个标记，实际只有在deAttach为真时起作用。
@@ -26,7 +26,7 @@ class DesktopWindow(
     /**
      * 这只是一个标记，在deAttach为真时可以视为是否退出。
      */
-    val isReleased: Boolean
+    val shouldReleased: Boolean
         get() = exit.value
 
     /**
@@ -35,7 +35,7 @@ class DesktopWindow(
      */
     operator fun invoke(content: @Composable() (ApplicationScope.() -> Unit)) {
         this.content = content
-        if (deAttach) {
+        if (multiApplication) {
             application {
                 if (exit.value) {
                     exitApplication()

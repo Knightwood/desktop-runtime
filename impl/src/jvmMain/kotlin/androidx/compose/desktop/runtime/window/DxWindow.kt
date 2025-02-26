@@ -7,6 +7,8 @@ import java.util.*
 abstract class DxWindow(
     val uuid: UUID = UUID.randomUUID(),
 ) {
+    @Volatile
+    var isDeAttached: Boolean = false
     var content: (@Composable ApplicationScope.() -> Unit)? = null
 
     @Composable

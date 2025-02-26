@@ -4,7 +4,11 @@ import androidx.compose.desktop.runtime.activity.*
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.core.ManagerHolder
 import androidx.compose.desktop.runtime.core.applicationInternal
+import androidx.compose.desktop.runtime.domain.RunningState
+import androidx.compose.desktop.runtime.domain.Stop
 import androidx.compose.desktop.runtime.window.WindowManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 open class ContextImpl() : IContext() {
@@ -17,7 +21,10 @@ open class ContextImpl() : IContext() {
 
     override fun exitApp() {
         activityManager().clear()
-        application.exit()
+        //反正都要退出了，随便用一个协程也不是什么罪过了
+        CoroutineScope(Dispatchers.Default).launch {
+            ManagerHolder.runningState.emit(Stop())
+        }
     }
 
     override fun startActivity(

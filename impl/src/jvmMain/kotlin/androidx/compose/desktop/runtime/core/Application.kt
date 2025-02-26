@@ -101,7 +101,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
     /**
      * 退出应用，作用同windowManager().exitApplication()，但是多了生命周期处理
      */
-    internal fun exit() {
+    internal fun exitAllService() {
         scope.launch {
             withContext(Dispatchers.Main) {
                 lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
@@ -160,7 +160,7 @@ fun startApplication(
                 it.prepare(aware)
                 it.windowManager().content = scope
                 it.startMainActivity(mainActivity, intentBuilder)
-                it.exit()//如果ui线程、那些协程都结束了，自然会走到这一步
+                //只要到达那个地方 it.exit() //如果都结束了，自然会走到这一步
             }
         } else {
             throw IllegalStateException("Application already started")

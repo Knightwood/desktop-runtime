@@ -28,6 +28,7 @@ fun interface ActivityResult {
 }
 
 /**
+ * 如下是jb对于window的生命周期描述。
  * | Swing listener callbacks | Lifecycle event | Lifecycle state change |
  * |--------------------------|-----------------|------------------------|
  * | windowIconified(最小化)     | ON_STOP         | STARTED → CREATED      |
@@ -35,6 +36,10 @@ fun interface ActivityResult {
  * | windowLostFocus(失去焦点)    | ON_PAUSE        | RESUMED → STARTED      |
  * | windowGainedFocus(获得焦点)  | ON_RESUME       | STARTED → RESUMED      |
  * | dispose(移除)              | ON_DESTROY      | CREATED → DESTROYED    |
+ *
+ * activity的生命周期并不完全与window同步.
+ * window被移除时，会回调[Activity.onDestroyView]，activity不会进入onDestroy状态。
+ * 只有在调用[Activity.finish]，activity的生命周期才会进行到onDestroy。
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver {
 
@@ -67,7 +72,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         this.intent = intent
         this.result = block
         if (!this::mWindow.isInitialized) {
-            mWindow = DesktopWindow(this, windowManager(), intent.deAttach)
+            mWindow = DesktopWindow(this, windowManager(), intent.multiApplication)
         }
         ActivityManager.register(uuid, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
@@ -76,14 +81,30 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
     }
 
+    /**
+     * [ComposeView]中观察了Window的生命周期，并同步给activity的[lifecycleRegistry]
+     * 但是，不能同步[ON_DESTROY]状态，因为activity的生命周期理应比window更长。
+     *
+     * @param event 需要同步的生命周期事件
+     * @param destroy 是否同步[ON_DESTROY]，在同步window生命周期是要求此参数为false。
+     */
+    private fun syncLife(event: Lifecycle.Event, destroy: Boolean = false) {
+        if (event != ON_DESTROY || destroy) {
+            lifecycleRegistry.currentState = event.targetState
+            lifecycleRegistry.handleLifecycleEvent(event)
+        }
+    }
+
+    /**
+     * 观察window的生命周期，并进行部分同步
+     */
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-        lifecycleRegistry.currentState = event.targetState
-        lifecycleRegistry.handleLifecycleEvent(event)
+        syncLife(event)
         when (event) {
             ON_RESUME -> onResume()
             ON_PAUSE -> onPause()
             ON_STOP -> onStop()
-            ON_DESTROY -> onDestroy()
+            ON_DESTROY -> onDestroyView()//window不显示，生命周期走到了destroy，但是activity还不能到destroy的时候
             ON_START -> onStart()
             else -> {}
         }
@@ -133,20 +154,45 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     }
 
     @CallSuper
+    open fun onDestroyView() {
+    }
+
+    @CallSuper
     open fun onDestroy() {
     }
 
     @CallSuper
     open fun finish() {
-        ActivityManager.remove(uuid)
-        if (!intent.deAttach) { // 单application模式，关闭窗口
-            if (intent.exitAppWhenEmpty) {
+        syncLife(Lifecycle.Event.ON_DESTROY, true)
+        onDestroy()
+        if (!intent.multiApplication) { // 单application模式，关闭窗口
+            if (intent.exitAppWhenEmpty) { //如果window栈为空时退出app为true
                 exitApp()
             } else {
                 windowManager().deAttachWindow(mWindow)
             }
         }
-        mWindow.release()
+        ActivityManager.remove(uuid)
+        mWindow.release()//如果是多实例模式，进行到这一步时，应用的生命就结束了
+    }
+
+    /**
+     * [Intent.multiApplication]为true，不支持[hide]/[show]
+     */
+    @CallSuper
+    open fun hide() {
+        windowManager().deAttachWindow(mWindow)
+    }
+
+    /**
+     * [Intent.multiApplication]为true，不支持[hide]/[show]
+     */
+    @CallSuper
+    open fun show() {
+        synchronized(this) {//避免重复添加显示界面
+            if (mWindow.isDeAttached)
+                windowManager().attachWindow(mWindow)
+        }
     }
 
     /**
@@ -180,7 +226,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     fun ComposeView(
         state: WindowState = rememberWindowState(),
         onCloseRequest: () -> Unit = {
-            finish()
+            hide()
         },
         visible: Boolean = true,
         title: String = "Untitled",
@@ -224,35 +270,3 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         const val FAILED = 0
     }
 }
-
-
-@Composable
-fun Activity.LinkComposeView(
-    state: WindowState = rememberWindowState(),
-    visible: Boolean = true,
-    title: String = "Untitled",
-    icon: Painter? = null,
-    undecorated: Boolean = false,
-    transparent: Boolean = false,
-    resizable: Boolean = true,
-    enabled: Boolean = true,
-    focusable: Boolean = true,
-    alwaysOnTop: Boolean = false,
-    onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
-    onKeyEvent: (KeyEvent) -> Boolean = { false },
-    content: @Composable FrameWindowScope.() -> Unit
-) = this.ComposeView(
-    state = state,
-    visible = visible,
-    title = title,
-    icon = icon,
-    undecorated = undecorated,
-    transparent = transparent,
-    resizable = resizable,
-    enabled = enabled,
-    focusable = focusable,
-    alwaysOnTop = alwaysOnTop,
-    onPreviewKeyEvent = onPreviewKeyEvent,
-    onKeyEvent = onKeyEvent,
-    content = content
-)

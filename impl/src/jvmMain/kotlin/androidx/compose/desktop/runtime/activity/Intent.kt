@@ -49,7 +49,7 @@ data class Intent(
      * }
      * ```
      */
-    var deAttach: Boolean = false
+    var multiApplication: Boolean = false
 
     companion object {
         infix operator fun LaunchMode.plus(data: Any?) = Intent(this, data)

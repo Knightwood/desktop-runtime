@@ -1,11 +1,13 @@
 package androidx.compose.desktop.runtime.window
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.desktop.runtime.core.ManagerHolder
+import androidx.compose.desktop.runtime.core.applicationInternal
+import androidx.compose.desktop.runtime.domain.IDLE
+import androidx.compose.desktop.runtime.domain.Stop
+import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.window.*
+import com.github.knightwood.slf4j.kotlin.logger
 import kotlinx.coroutines.*
 import org.jetbrains.skiko.MainUIDispatcher
 
@@ -33,10 +35,20 @@ class WindowManager private constructor() {
             windows.forEach { current ->
                 current.windowExec(this)
             }
+            val runningState = ManagerHolder.runningState.collectAsState(IDLE)
+            when (runningState.value) {
+                is Stop -> {
+                    logger.info("exit...")
+                    applicationInternal.exitAllService()
+                }
+
+                else -> {}
+            }
         }
     }
 
     fun deAttachWindow(window: DxWindow) {
+        window.isDeAttached = true
         windows.remove(window)
     }
 
@@ -44,6 +56,7 @@ class WindowManager private constructor() {
      * 添加一个要显示的window，如果添加之前没有window，则调用prepare方法。
      */
     fun attachWindow(window: DxWindow) {
+        window.isDeAttached = false
         windows.add(window)
     }
 
