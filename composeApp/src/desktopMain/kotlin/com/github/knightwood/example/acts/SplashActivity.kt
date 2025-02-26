@@ -10,11 +10,17 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.desktop.runtime.activity.Activity
+import androidx.compose.desktop.runtime.system.app.AppPathProvider
+import androidx.compose.desktop.runtime.system.app.AppInfoHolder
 import kotlinx.coroutines.delay
 
 class SplashActivity : Activity() {
     override fun onCreate() {
         super.onCreate()
+        AppInfoHolder.provide {
+            appName = "测试"
+        }
+        AppPathProvider.print()
         setContentView {
             LaunchedEffect(Unit) {
                 delay(600) // 延迟500毫秒
