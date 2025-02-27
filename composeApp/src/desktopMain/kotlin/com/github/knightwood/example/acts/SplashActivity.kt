@@ -24,6 +24,9 @@ class SplashActivity : Activity() {
             val state: WindowState =
                 rememberWindowState(position = WindowPosition.Aligned(Alignment.Center), size = DpSize(300.dp, 300.dp))
             ComposeView(
+                onCloseRequest = {
+                    finish()
+                },
                 state = state,
                 alwaysOnTop = true,
                 title = "Multi-Devs Control",

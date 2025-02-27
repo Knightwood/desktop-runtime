@@ -7,17 +7,21 @@ import java.util.*
 abstract class DxWindow(
     val uuid: UUID = UUID.randomUUID(),
 ) {
+    /**
+     * 是否被添加到了[WindowManager.windows]列表中
+     */
     @Volatile
-    var isDeAttached: Boolean = false
-    var content: (@Composable ApplicationScope.() -> Unit)? = null
+    var isAttachedToApplication: Boolean = false
+
+    //setContentView传入的内容
+    var contentShell: (@Composable ApplicationScope.() -> Unit)? = null
 
     @Composable
     fun windowExec(scope: ApplicationScope) {
-        content?.invoke(scope)
+        contentShell?.invoke(scope)
     }
 
-    open fun release() {
-
-    }
+    abstract fun release()
+    abstract fun active()
 }
 

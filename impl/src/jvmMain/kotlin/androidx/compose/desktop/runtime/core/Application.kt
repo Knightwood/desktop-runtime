@@ -7,12 +7,14 @@ import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.activity.Intent
 import androidx.compose.desktop.runtime.context.ContextImpl
 import androidx.compose.desktop.runtime.context.ContextWrapper
+import androidx.compose.desktop.runtime.domain.Stop
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.ApplicationScope
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.logger
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
 import kotlin.system.exitProcess
 
 /**
@@ -64,21 +66,35 @@ open class Application : ContextWrapper(), LifecycleOwner {
     //<editor-fold desc="内部初始化">
 
     /**
-     * 启动所有的服务，比如窗口管理、activity管理
+     * 生成并配置Application-> 启动并配置activityManager、WindowManager等 ->MainActivity
      */
-    private fun startAllService() = ManagerHolder.startAll()
-
-    internal fun prepare(aware: Array<out Aware>) {
+    internal fun prepare(
+        aware: Array<out Aware>,
+        applicationContent: @Composable ApplicationScope.() -> Unit = {},
+    ) {
         try {
             fake = false
             this.aware = aware
-            startAllService()
+            ServiceHolder.prepare()//启动所有的服务，比如窗口管理、activity管理
+            windowManager().content = applicationContent
             scope.launch {
                 withContext(Dispatchers.Main) {
                     // 初始化时设置生命周期状态
                     lifecycleRegistry = LifecycleRegistry(this@Application)
                     lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
                     lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+                }
+            }
+            scope.launch {
+                ServiceHolder.runningState.collect{
+                    when (it) {
+                        is Stop -> {
+                            logger.info("exit...")
+                            applicationInternal.release()
+                        }
+
+                        else -> {}
+                    }
                 }
             }
             onCreate()
@@ -99,14 +115,19 @@ open class Application : ContextWrapper(), LifecycleOwner {
     //</editor-fold>
 
     /**
-     * 退出应用，作用同windowManager().exitApplication()，但是多了生命周期处理
+     * 结束应用进程
+     *
+     * 所有activity销毁 -> 清理activityManager、WindowManager等 -> Application destroy
      */
-    internal fun exitAllService() {
+    internal fun release() {
         scope.launch {
             withContext(Dispatchers.Main) {
                 lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
                 lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
                 onDestroy()
+                activityManager().release()
+                windowManager().release()
+                ServiceHolder.release()
                 exitProcess(0)
             }
         }
@@ -145,20 +166,21 @@ inline fun <reified T : Activity, reified R : Application> startApplication(
  * @param mainActivity 主界面
  * @param applicationClass 应用程序类，默认为Application
  * @param aware 如果不想再application的onCreate函数中写太多逻辑，可以放到这里的初始化块
+ * @param applicationContent
+ *    额外的UI代码块，不属于任何activity，会被applicationScope中被直接执行
  * @param intentBuilder 启动主界面的参数
  */
 fun startApplication(
     mainActivity: Class<out Activity>,
     applicationClass: Class<out Application> = Application::class.java,
     vararg aware: Aware,
-    scope: @Composable ApplicationScope.() -> Unit = {},
+    applicationContent: @Composable ApplicationScope.() -> Unit = {},
     intentBuilder: (Intent.() -> Unit)? = null
 ) {
     synchronized(lock) {
         if (applicationInternal.fake) {
             applicationInternal = applicationClass.getDeclaredConstructor().newInstance().also {
-                it.prepare(aware)
-                it.windowManager().content = scope
+                it.prepare(aware, applicationContent)
                 it.startMainActivity(mainActivity, intentBuilder)
                 //只要到达那个地方 it.exit() //如果都结束了，自然会走到这一步
             }

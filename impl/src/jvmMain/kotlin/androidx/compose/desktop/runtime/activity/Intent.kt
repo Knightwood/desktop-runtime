@@ -1,19 +1,14 @@
 package androidx.compose.desktop.runtime.activity
 
-import androidx.compose.desktop.runtime.context.IContext
 
 data class Intent(
     val launchMode: LaunchMode = LaunchMode.STANDARD,
     val data: Any? = null
 ) {
     /**
-     * If true, the app will exit when the windows list is empty in the window
-     * manager
-     *
-     * if false, You can manually call [IContext.exitApp] to exit the
-     * application process
+     * 是否在销毁window时保存状态，一边下一次打开activity时恢复状态
      */
-    var exitAppWhenEmpty: Boolean = false
+    var saveState: Boolean = false
 
     /**
      * If true, the activity will not be attached to current application scope

@@ -14,7 +14,7 @@ abstract class IContext {
     abstract fun activityManager(): ActivityManager
 
     /**
-     * 亲手结束软件生命
+     * 结束软件生命
      */
     open fun exitApp() {}
 

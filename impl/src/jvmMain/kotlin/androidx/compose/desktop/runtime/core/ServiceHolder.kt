@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 /**
  * 持有所有的管理工具，使用[get]函数获取管理工具
  */
-internal object ManagerHolder {
+internal object ServiceHolder {
     /**
      * 程序的运行状态
      */
@@ -16,15 +16,18 @@ internal object ManagerHolder {
     private val map: MutableMap<String, Any> = mutableMapOf()
 
     /**
-     * 启动并配置好所有的管理服务
+     * 生成并持有所有资源服务实例
      */
-    fun startAll() {
+    fun prepare() {
         // ActivityManager
         map[ActivityManager.NAME] = ActivityManager
         // WindowManager
         val windowManager = WindowManager.instance()
         map[WindowManager.NAME] = windowManager
-        println("启动所有服务完成")
+    }
+
+    fun release(){
+        map.clear()
     }
 
     /**

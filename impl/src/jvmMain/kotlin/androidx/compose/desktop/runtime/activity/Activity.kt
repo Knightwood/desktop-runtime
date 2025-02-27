@@ -10,8 +10,13 @@ import androidx.lifecycle.Lifecycle.Event.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.desktop.runtime.context.IContext
 import androidx.compose.desktop.runtime.context.ThemedContext
+import androidx.compose.desktop.runtime.window.ContentWrapper
 import androidx.compose.desktop.runtime.window.DesktopWindow
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.window.*
+import androidx.core.bundle.Bundle
+import com.github.knightwood.slf4j.kotlin.logger
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -29,28 +34,38 @@ fun interface ActivityResult {
 
 /**
  * 如下是jb对于window的生命周期描述。
- * | Swing listener callbacks | Lifecycle event | Lifecycle state change |
- * |--------------------------|-----------------|------------------------|
- * | windowIconified(最小化)     | ON_STOP         | STARTED → CREATED      |
- * | windowDeiconified(还原)    | ON_START        | CREATED → STARTED      |
- * | windowLostFocus(失去焦点)    | ON_PAUSE        | RESUMED → STARTED      |
- * | windowGainedFocus(获得焦点)  | ON_RESUME       | STARTED → RESUMED      |
- * | dispose(移除)              | ON_DESTROY      | CREATED → DESTROYED    |
+ *
+ * | Swing listener callbacks     | Lifecycle event | Lifecycle state change |
+ * |------------------------------|-----------------|------------------------|
+ * | windowIconified(最小化)         | ON_STOP         | STARTED → CREATED      |
+ * | windowDeiconified(还原)        | ON_START        | CREATED → STARTED      |
+ * | windowLostFocus(失去焦点、隐藏)     | ON_PAUSE        | RESUMED → STARTED      |
+ * | windowGainedFocus(获得焦点、恢复显示) | ON_RESUME       | STARTED → RESUMED      |
+ * | dispose(移除window)            | ON_DESTROY      | CREATED → DESTROYED    |
  *
  * activity的生命周期并不完全与window同步.
- * window被移除时，会回调[Activity.onDestroyView]，activity不会进入onDestroy状态。
- * 只有在调用[Activity.finish]，activity的生命周期才会进行到onDestroy。
+ *
+ * [Activity.finish] - 关闭窗口，不可恢复，标志着生命周期走到[ON_DESTROY] [Activity.hide] -
+ * 隐藏窗口，可以恢复，标记生命周期走到[ON_PAUSE]
+ *
+ * compose resource目前可以使用多国语言，但是它不给你动态修改的功能，相关类和方法都是internal的。
+ * 但是，它的功能实现实际上依赖于Java.Locale，因此我们可以通过在compose刷新之前修改Java.Locale，
+ * 从而半支持多国语言的动态切换（这需要触发整个页面compose的重绘）。
+ *
+ * 首先，修改java默认locale，然后关闭窗口，此时compose进入onStop状态，
+ * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver {
+    internal var bundle: Bundle? = null
 
     lateinit var mWindow: DesktopWindow
     lateinit var intent: Intent
 
     @Suppress("LeakingThis")
-    private var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this@Activity)
+    protected var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this@Activity)
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
-    private val uuid = UUID.randomUUID()
+    val uuid = UUID.randomUUID()
     private var result: ActivityResult? = null
 
     /**
@@ -76,13 +91,11 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         }
         ActivityManager.register(uuid, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-        lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
         onCreate()
-        lifecycleRegistry.currentState = Lifecycle.State.CREATED
     }
 
     /**
-     * [ComposeView]中观察了Window的生命周期，并同步给activity的[lifecycleRegistry]
+     * 观察Window的生命周期，并同步给activity的[lifecycleRegistry]
      * 但是，不能同步[ON_DESTROY]状态，因为activity的生命周期理应比window更长。
      *
      * @param event 需要同步的生命周期事件
@@ -97,13 +110,22 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 
     /**
      * 观察window的生命周期，并进行部分同步
+     * 当window销毁时，activity的生命周期不能走到destroy，仅调用onDestroyView即可。
      */
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+//        logger.info("window event: $event")
         syncLife(event)
         when (event) {
             ON_RESUME -> onResume()
             ON_PAUSE -> onPause()
-            ON_STOP -> onStop()
+            ON_STOP -> {
+                onStop()
+                onSaveInstanceState(bundle ?: let {
+                    this.bundle = Bundle()
+                    this.bundle!!
+                })
+            }
+
             ON_DESTROY -> onDestroyView()//window不显示，生命周期走到了destroy，但是activity还不能到destroy的时候
             ON_START -> onStart()
             else -> {}
@@ -117,6 +139,15 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     @CallSuper
     open fun onCreate() {
+        lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
+    }
+
+    protected open fun onSaveInstanceState(outState: Bundle) {
+        val lifecycle = lifecycle
+        if (lifecycle is LifecycleRegistry) {
+            lifecycle.currentState = Lifecycle.State.CREATED
+        }
     }
 
     open fun onStart() {}
@@ -125,11 +156,32 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         if (!this::mWindow.isInitialized) {
             throw IllegalStateException("window is not initialized")
         }
-        if (this.mWindow.content != null) {
+        if (this.mWindow.contentShell != null) {
             throw IllegalStateException("window content is not null, setContentView can only call once time")
         }
         mWindow(content)
+
     }
+
+
+//    fun test() {
+//        setContent {
+//            val b = 1
+//            wrap {
+//                println(b)
+//            }
+//        }
+//    }
+//
+//    fun setContent(content: ContentWrapper.() -> Unit) {
+//        val contentWrapper = object : ContentWrapper {
+//            val a = 1
+//            override fun wrap(content: @Composable () -> Unit): () -> Unit {
+//                TODO("Not yet implemented")
+//            }
+//        }
+//        contentWrapper.content()
+//    }
 
     /**
      * 当为单例模式时，再次启动activity将回调此方法。
@@ -161,19 +213,24 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     open fun onDestroy() {
     }
 
+    /**
+     * 1. 从ActivityManager中移出自己
+     * 2. 从windowManager移出window，调用[onDestroyView]方法
+     * 3. 进入[ON_DESTROY]状态，并调用[onDestroy]方法
+     */
     @CallSuper
     open fun finish() {
-        syncLife(Lifecycle.Event.ON_DESTROY, true)
-        onDestroy()
-        if (!intent.multiApplication) { // 单application模式，关闭窗口
-            if (intent.exitAppWhenEmpty) { //如果window栈为空时退出app为true
-                exitApp()
-            } else {
-                windowManager().deAttachWindow(mWindow)
-            }
+        if (intent.multiApplication) { // 多application模式，会结束整个应用进程
+            ActivityManager.remove(uuid)
+            mWindow.release()//多实例模式下，进行到这一步时，应用的生命就结束了
+            onDestroy()
+            syncLife(Lifecycle.Event.ON_DESTROY, true)
+        } else {// 单application模式，关闭窗口
+            ActivityManager.remove(uuid)
+            mWindow.release()
+            onDestroy()
+            syncLife(Lifecycle.Event.ON_DESTROY, true)
         }
-        ActivityManager.remove(uuid)
-        mWindow.release()//如果是多实例模式，进行到这一步时，应用的生命就结束了
     }
 
     /**
@@ -181,17 +238,17 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     @CallSuper
     open fun hide() {
-        windowManager().deAttachWindow(mWindow)
+        lifecycleScope.launch {
+            mWindow.isHidden.value = true
+        }
     }
 
     /**
      * [Intent.multiApplication]为true，不支持[hide]/[show]
      */
-    @CallSuper
     open fun show() {
-        synchronized(this) {//避免重复添加显示界面
-            if (mWindow.isDeAttached)
-                windowManager().attachWindow(mWindow)
+        lifecycleScope.launch {
+            mWindow.isHidden.value = (false)
         }
     }
 
@@ -208,8 +265,8 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      * 创建一个ComposeView，并绑定生命周期。
      *
      * @param state 窗口状态，默认为[rememberWindowState]
-     * @param onCloseRequest 关闭窗口的回调，默认为[finish]关闭当前页面，也可以修改调用[exitApp]退出应用
-     * @param visible 窗口是否可见，默认为true
+     * @param onCloseRequest 关闭窗口的回调，默认为[finish]关闭当前window，
+     *    可以调用[hide]隐藏窗口，也可以调用[exitApp]结束应用进程。
      * @param title 窗口标题，默认为"Untitled"
      * @param icon 窗口图标，默认为null
      * @param undecorated 是否无边框，默认为false
@@ -225,10 +282,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     @Composable
     fun ComposeView(
         state: WindowState = rememberWindowState(),
-        onCloseRequest: () -> Unit = {
-            hide()
-        },
-        visible: Boolean = true,
+        onCloseRequest: () -> Unit,
         title: String = "Untitled",
         icon: Painter? = null,
         undecorated: Boolean = false,
@@ -244,7 +298,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         Window(
             onCloseRequest = onCloseRequest,
             state = state,
-            visible = visible,
+            visible = !mWindow.isHidden.value,
             title = title,
             icon = icon,
             undecorated = undecorated,

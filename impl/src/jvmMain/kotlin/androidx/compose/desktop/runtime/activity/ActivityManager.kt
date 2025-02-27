@@ -41,7 +41,11 @@ object ActivityManager {
         activityMap.remove(uuid)
     }
 
-    fun clear() {
+
+    fun release() {
+        activityMap.values.forEach {
+            it.finish()
+        }
         activityMap.clear()
     }
 

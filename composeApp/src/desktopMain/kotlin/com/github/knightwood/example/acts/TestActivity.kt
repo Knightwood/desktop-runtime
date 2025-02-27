@@ -6,9 +6,21 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.compose.desktop.runtime.activity.ComponentActivity
 import androidx.compose.desktop.runtime.activity.Intent
+import androidx.compose.desktop.runtime.domain.ProvideSaveStateHolder
+import androidx.compose.desktop.runtime.system.locale.LocaleHolder
 import androidx.compose.desktop.runtime.viewmodel.viewModels
-import com.github.knightwood.example.ui.TestUI
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.github.knightwood.slf4j.kotlin.logger
+import kotlinx.coroutines.launch
+import me.i18n.resources.app_name
+import org.jetbrains.compose.resources.stringResource
+import java.util.*
 import kotlin.random.Random
 import kotlin.reflect.KClass
 
@@ -22,7 +34,8 @@ open class TestActivity : ComponentActivity() {
     val randoms = Random.nextInt(0, 11)
     var tag = "Activity$randoms"
     private val logger = logger(tag)
-
+    lateinit var defaultLocale: Locale
+    var b = false
     val one = object : CreationExtras.Key<Int> {}
     val vm: TestViewModel by viewModels<TestViewModel>(extrasProducer = {
         val extras = MutableCreationExtras()
@@ -43,8 +56,41 @@ open class TestActivity : ComponentActivity() {
 
     override fun onCreate() {
         super.onCreate()
+        if (!this::defaultLocale.isInitialized)
+            defaultLocale = Locale.getDefault()
+
         setContentView {
-            TestUI(intent)
+            ComposeView(closeActivity = true) {
+                MaterialTheme {
+                    Column {
+                        Text(intent.data?.toString() ?: "First")
+                        Button(onClick = {
+                            val randoms = Random.nextInt(0, 11)
+//                    startActivity(MainActivity::class.java, "随机数${randoms}")
+                            startActivity(TestActivity::class.java, "随机数${randoms}")
+                        }) {
+                            Text("启动新页面")
+                        }
+
+                        val appname = stringResource(me.i18n.resources.Res.string.app_name)
+                        Text(appname)
+                        Button(onClick = {
+                            if (b) {
+                                lifecycleScope.launch {
+                                    LocaleHolder(Locale("en", "US"))
+                                }
+                            } else {
+                                lifecycleScope.launch {
+                                    LocaleHolder(defaultLocale)
+                                }
+                            }
+                            b = !b
+                        }) {
+                            Text("修改语言")
+                        }
+                    }
+                }
+            }
         }
         logger.info("onCreate：vm参数：" + vm.i)
         logger.info("onCreate：vm：" + vm)

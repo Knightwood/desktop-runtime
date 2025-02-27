@@ -36,6 +36,13 @@ kotlin {
     }
 }
 
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "me.i18n.resources"
+    generateResClass = auto
+}
+
+
 
 compose.desktop {
     application {

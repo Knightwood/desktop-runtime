@@ -1,12 +1,25 @@
 package androidx.compose.desktop.runtime.activity
 
+import androidx.compose.desktop.runtime.domain.ProvideSaveStateHolder
+import androidx.compose.desktop.runtime.viewmodel.createVM
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.window.FrameWindowScope
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowState
+import androidx.compose.ui.window.rememberWindowState
+import androidx.core.bundle.Bundle
 import androidx.lifecycle.*
+import androidx.lifecycle.Lifecycle.Event.ON_CREATE
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import androidx.compose.desktop.runtime.viewmodel.createVM
-import androidx.lifecycle.viewmodel.MutableCreationExtras
+import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 /**
@@ -126,10 +139,40 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
                 }
             }
         })
+        //经过测试，应该是屏幕旋转，自动调用onSaveInstanceState才会保存数据，
+        //旋转之后，数据会自动恢复，remembersaveable这是存回起作用。
+        //如果只是单纯的重组，因为没有报错数据，remembersavable也是不生效的
         savedStateRegistryController.performAttach()
         enableSavedStateHandles()
-        savedStateRegistryController.performRestore(null)
     }
+
+    override fun onCreate() {
+        savedStateRegistryController.performRestore(bundle)
+        bundle = null
+        super.onCreate()
+    }
+
+    override fun show() {
+        if (mWindow.exit.value) {//已经退出，需要重建activity
+            ActivityManager.register(uuid, this)
+            // FIXME:  报错SavedStateRegistry was already restored.
+//            savedStateRegistryController.performRestore(bundle)
+//            bundle = null
+            lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
+            lifecycleRegistry.currentState = Lifecycle.State.CREATED
+            mWindow.active()
+        } else {
+            lifecycleScope.launch {
+                mWindow.isHidden.value = (false)
+            }
+        }
+    }
+
+    protected override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        savedStateRegistryController.performSave(outState)
+    }
+
 
     private fun ensureViewModelStore() {
         if (_viewModelStore == null) {
@@ -153,4 +196,67 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
             return extras
         }
 
+    /**
+     * 创建一个ComposeView，并绑定生命周期。
+     *
+     * @param state 窗口状态，默认为[rememberWindowState]
+     * @param title 窗口标题，默认为"Untitled"
+     * @param icon 窗口图标，默认为null
+     * @param closeActivity 点击窗口关闭按钮时，是否关闭Activity，默认为false
+     * @param undecorated 是否无边框，默认为false
+     * @param transparent 是否透明，默认为false
+     * @param resizable 是否可resize，默认为true
+     * @param enabled 是否启用，默认为true
+     * @param focusable 是否可聚焦，默认为true
+     * @param alwaysOnTop 是否一直置顶，默认为false
+     * @param onPreviewKeyEvent 预处理按键事件，默认为{@code false}
+     * @param onKeyEvent 处理按键事件，默认为{@code false}
+     * @param content 窗口内容
+     */
+    @Composable
+    fun ComposeView(
+        state: WindowState = rememberWindowState(),
+        title: String = "Untitled",
+        icon: Painter? = null,
+        closeActivity: Boolean = false,
+        undecorated: Boolean = false,
+        transparent: Boolean = false,
+        resizable: Boolean = true,
+        enabled: Boolean = true,
+        focusable: Boolean = true,
+        alwaysOnTop: Boolean = false,
+        onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
+        onKeyEvent: (KeyEvent) -> Boolean = { false },
+        content: @Composable FrameWindowScope.() -> Unit
+    ) {
+//        ProvideSaveStateHolder(
+//            id = uuid.toString(),
+//            this@ComponentActivity,
+//            this@ComponentActivity,
+//            this@ComponentActivity
+//        ) {
+            Window(
+                onCloseRequest = if (closeActivity) ::finish else ::hide,
+                state = state,
+                visible = !mWindow.isHidden.value,
+                title = title,
+                icon = icon,
+                undecorated = undecorated,
+                transparent = transparent,
+                resizable = resizable,
+                enabled = enabled,
+                focusable = focusable,
+                alwaysOnTop = alwaysOnTop,
+                onPreviewKeyEvent = onPreviewKeyEvent,
+                onKeyEvent = onKeyEvent,
+                content = {
+                    val lc: LifecycleOwner = LocalLifecycleOwner.current
+                    remember {
+                        lc.lifecycle.addObserver(this@ComponentActivity)
+                    }
+                    content()
+                }
+            )
+//        }
+    }
 }
