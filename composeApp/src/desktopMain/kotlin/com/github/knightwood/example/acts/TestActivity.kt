@@ -6,18 +6,11 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.compose.desktop.runtime.activity.ComponentActivity
 import androidx.compose.desktop.runtime.activity.Intent
-import androidx.compose.desktop.runtime.domain.ProvideSaveStateHolder
-import androidx.compose.desktop.runtime.system.locale.LocaleHolder
 import androidx.compose.desktop.runtime.viewmodel.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.github.knightwood.slf4j.kotlin.logger
-import kotlinx.coroutines.launch
 import me.i18n.resources.app_name
 import org.jetbrains.compose.resources.stringResource
 import java.util.*
@@ -74,20 +67,6 @@ open class TestActivity : ComponentActivity() {
 
                         val appname = stringResource(me.i18n.resources.Res.string.app_name)
                         Text(appname)
-                        Button(onClick = {
-                            if (b) {
-                                lifecycleScope.launch {
-                                    LocaleHolder(Locale("en", "US"))
-                                }
-                            } else {
-                                lifecycleScope.launch {
-                                    LocaleHolder(defaultLocale)
-                                }
-                            }
-                            b = !b
-                        }) {
-                            Text("修改语言")
-                        }
                     }
                 }
             }

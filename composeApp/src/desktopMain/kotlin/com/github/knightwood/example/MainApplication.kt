@@ -3,11 +3,14 @@ package com.github.knightwood.example
 import ch.qos.logback.classic.LoggerContext
 import androidx.compose.desktop.runtime.core.Application
 import org.slf4j.LoggerFactory
+import java.util.Locale
 
 
 class MainApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        //通过修改locale，修改软件的语言显示
+        Locale.setDefault(Locale.CHINA)
     }
 
     override fun onDestroy() {
