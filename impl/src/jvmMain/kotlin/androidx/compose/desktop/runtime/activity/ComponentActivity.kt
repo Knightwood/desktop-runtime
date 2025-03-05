@@ -115,7 +115,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
          *    to the Application instance i.e., before onCreate()
          */
         get() {
-            check(application.fake) {
+            check(!application.fake) {
                 ("Your activity is not yet attached to the " +
                         "Application instance. You can't request ViewModel before onCreate call.")
             }

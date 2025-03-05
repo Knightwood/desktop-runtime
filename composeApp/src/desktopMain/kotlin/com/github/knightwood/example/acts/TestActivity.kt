@@ -10,6 +10,7 @@ import androidx.compose.desktop.runtime.viewmodel.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.window.Tray
 import androidx.jvm.system.core.AppPathProvider
 import com.github.knightwood.slf4j.kotlin.logger
 import me.i18n.resources.app_name

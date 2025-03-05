@@ -66,6 +66,7 @@ kotlin {
                     implementation(project(":system-impl:mac"))
                 }
             }
+//            implementation("com.dorkbox:SystemTray:4.4")
         }
     }
 }
@@ -86,6 +87,9 @@ compose.resources {
 
 compose.desktop {
     application {
+//        jvmArgs += listOf("-Dfile.encoding=GBK")
+//        jvmArgs -= listOf("-Dfile.encoding=UTF-8")
+
         mainClass = "com.github.knightwood.example.MainKt"
         buildTypes.release {
             proguard {

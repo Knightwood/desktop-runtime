@@ -10,11 +10,14 @@ import androidx.compose.desktop.runtime.context.ContextWrapper
 import androidx.compose.desktop.runtime.domain.Stop
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.ApplicationScope
+import androidx.lifecycle.Lifecycle.Event.ON_CREATE
+import androidx.lifecycle.Lifecycle.Event.ON_START
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.logger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import org.jetbrains.skiko.MainUIDispatcher
 import kotlin.system.exitProcess
 
 /**
@@ -27,11 +30,6 @@ open class Application : ContextWrapper(), LifecycleOwner {
      * 此协程最终会随着进程结束而结束，不必担心生命周期
      */
     val scope: CoroutineScope = CoroutineScope(Dispatchers.Default) + SupervisorJob() + CoroutineName("Application")
-
-    init {
-        mBase = ContextImpl()
-    }
-
     /**
      * 若为true，则onCreate将使用协程初始化所有的aware逻辑块
      */
@@ -42,12 +40,30 @@ open class Application : ContextWrapper(), LifecycleOwner {
 
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
-    private lateinit var lifecycleRegistry: LifecycleRegistry
+
+    @Suppress("LeakingThis")
+    var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this)
 
     //<editor-fold desc="生命周期">
 
+    init {
+        mBase = ContextImpl()
+        scope.launch {
+            withContext(MainUIDispatcher) {
+                // 初始化时设置生命周期状态
+                lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
+            }
+        }
+    }
+
     @CallSuper
     open fun onCreate() {
+        scope.launch {
+            withContext(MainUIDispatcher) {
+                lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
+                lifecycleRegistry.currentState = Lifecycle.State.CREATED
+            }
+        }
         val f: () -> Unit = {
             for (a in aware) {
                 a.onCreate(this@Application)
@@ -78,19 +94,11 @@ open class Application : ContextWrapper(), LifecycleOwner {
             ServiceHolder.prepare()//启动所有的服务，比如窗口管理、activity管理
             windowManager().content = applicationContent
             scope.launch {
-                withContext(Dispatchers.Main) {
-                    // 初始化时设置生命周期状态
-                    lifecycleRegistry = LifecycleRegistry(this@Application)
-                    lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-                    lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
-                }
-            }
-            scope.launch {
-                ServiceHolder.runningState.collect{
+                ServiceHolder.runningState.collect {
                     when (it) {
                         is Stop -> {
                             logger.info("exit...")
-                            applicationInternal.release()
+                            release()
                         }
 
                         else -> {}
@@ -119,17 +127,16 @@ open class Application : ContextWrapper(), LifecycleOwner {
      *
      * 所有activity销毁 -> 清理activityManager、WindowManager等 -> Application destroy
      */
-    internal fun release() {
-        scope.launch {
-            withContext(Dispatchers.Main) {
-                lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-                lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-                onDestroy()
-                activityManager().release()
-                windowManager().release()
-                ServiceHolder.release()
-                exitProcess(0)
-            }
+    internal suspend fun release() {
+        withContext(MainUIDispatcher) {
+            logger.info { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+            onDestroy()
+            activityManager().release()
+            windowManager().release()
+            ServiceHolder.release()
+            exitProcess(0)
         }
     }
 }
@@ -137,7 +144,6 @@ open class Application : ContextWrapper(), LifecycleOwner {
 /**
  * 从这里可以得到全局的application引用，用于上下文操作
  */
-@Volatile
 internal var applicationInternal: Application = Application()
 private val lock = Any()
 
@@ -152,11 +158,14 @@ private val lock = Any()
  */
 inline fun <reified T : Activity, reified R : Application> startApplication(
     vararg aware: Aware,
+    noinline applicationContent: @Composable ApplicationScope.() -> Unit = {},
     noinline intentBuilder: (Intent.() -> Unit)? = null
 ) {
     startApplication(
         T::class.java, R::class.java,
-        *aware, intentBuilder = intentBuilder
+        aware = aware,
+        applicationContent = applicationContent,
+        intentBuilder = intentBuilder
     )
 }
 
@@ -179,7 +188,9 @@ fun startApplication(
 ) {
     synchronized(lock) {
         if (applicationInternal.fake) {
-            applicationInternal = applicationClass.getDeclaredConstructor().newInstance().also {
+            // 创建Application实例，并初始化；不要在此处给applicationInternal赋值，因为阻塞会导致永远不会赋值
+            applicationClass.getDeclaredConstructor().newInstance().also {
+                applicationInternal = it
                 it.prepare(aware, applicationContent)
                 it.startMainActivity(mainActivity, intentBuilder)
                 //只要到达那个地方 it.exit() //如果都结束了，自然会走到这一步

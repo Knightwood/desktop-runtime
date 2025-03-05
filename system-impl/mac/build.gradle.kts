@@ -68,7 +68,7 @@ dependencies {
     ksp(libs.autoService.ksp)
     implementation(libs.autoService.annoations)
     implementation(project(":system-impl:spi"))
-    implementation("com.dorkbox:SystemTray:4.4")
+//    implementation("com.dorkbox:SystemTray:4.4")
 
 }
 

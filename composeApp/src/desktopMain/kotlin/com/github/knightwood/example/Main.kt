@@ -1,18 +1,22 @@
 package com.github.knightwood.example
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.desktop.runtime.activity.Activity
-import androidx.compose.desktop.runtime.activity.Intent
 import androidx.compose.desktop.runtime.core.startApplication
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.toAwtImage
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.window.Tray
+import androidx.jvm.system.core.painterResource
+import androidx.jvm.system.ui.tray.FixedSystemTray
+import androidx.jvm.system.ui.tray.FixedTrayMenuBuilder.Companion.buildTrayMenu
+import androidx.jvm.system.ui.tray.FixedTrayMenuItem
+import androidx.jvm.system.ui.tray.TraySeparator
 import com.github.knightwood.example.acts.SplashActivity
-import com.github.knightwood.example.acts.TestActivity
+import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.logger
-import kotlin.random.Random
 
 //fun main() = startApplication(
 //    SplashActivity::class.java,
@@ -20,7 +24,24 @@ import kotlin.random.Random
 //)
 
 //或者
-fun main() = startApplication<SplashActivity, MainApplication>()
+fun main() = startApplication<SplashActivity, MainApplication>(
+    applicationContent = {
+        val painter = painterResource("icons/app_icon.svg")
+        val icon1 = rememberVectorPainter(Icons.Default.Settings)
+        val icon2 = rememberVectorPainter(Icons.Default.ExitToApp)
+        FixedSystemTray(icon = painter, tooltip = "hello",
+            menu = remember {
+                buildTrayMenu {
+                    this + FixedTrayMenuItem("settings", icon = icon1)
+                    this + TraySeparator
+                    this + FixedTrayMenuItem("exit", icon = icon2) {
+                        log.info("exit")
+                        MainApplication.ctx.exitApp()
+                    }
+                }
+            })
+    }
+)
 
 
 private val log = logger("main")
@@ -48,3 +69,4 @@ private var hide = mutableStateOf(false)
 //    }
 //    SystemTray()
 //}
+
