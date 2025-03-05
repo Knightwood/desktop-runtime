@@ -25,7 +25,7 @@ val currentArch by lazy {
     val osArch = System.getProperty("os.arch")
     when (osArch) {
         "x86_64", "amd64" -> Arch.X64
-        "aarch64" -> Arch.Arm64
+        "aarch64", "arm64" -> Arch.Arm64
         "x86" -> Arch.X32
         else -> error("Unsupported OS arch: $osArch")
     }
@@ -34,6 +34,29 @@ val currentArch by lazy {
 val is64Arch by lazy {
     currentArch == Arch.X64 || currentArch == Arch.Arm64
 }
+
+/**
+ * 获取当前系统 名称-架构
+ */
+val currentOsAndArch: String
+    get() {
+        val platform = currentOS
+        val platformAndArch =
+            if (platform == SystemOs.Windows && is64Arch) {
+                "windows-x64"
+            } else if (platform == SystemOs.MacOS) {
+                if (currentArch == Arch.X64) {
+                    "macos-x64"
+                } else {
+                    "macos-arm64"
+                }
+            } else if (platform == SystemOs.Linux && is64Arch) {
+                "linux-x64"
+            } else {
+                throw IllegalStateException("Unknown platform: ${platform.name}")
+            }
+        return platformAndArch
+    }
 
 
 fun getWindowsVersion(
