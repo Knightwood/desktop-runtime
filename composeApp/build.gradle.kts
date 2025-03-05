@@ -13,6 +13,7 @@ kotlin {
         val desktopMain by getting
 
         commonMain.dependencies {
+            implementation(libs.okio)
             implementation(libs.kotlin.coroutines.core)
             implementation(compose.runtime)
             implementation(compose.foundation)

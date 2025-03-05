@@ -2,6 +2,8 @@ package com.github.knightwood.example
 
 import ch.qos.logback.classic.LoggerContext
 import androidx.compose.desktop.runtime.core.Application
+import androidx.compose.desktop.runtime.system.app.AppInfoProvider
+import androidx.compose.desktop.runtime.system.app.AppPathProvider
 import org.slf4j.LoggerFactory
 import java.util.Locale
 
@@ -11,6 +13,10 @@ class MainApplication : Application() {
         super.onCreate()
         //通过修改locale，修改软件的语言显示
         Locale.setDefault(Locale.CHINA)
+        AppInfoProvider.provide {
+            appName = "测试"
+        }
+        AppPathProvider.print()
     }
 
     override fun onDestroy() {

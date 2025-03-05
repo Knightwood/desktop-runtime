@@ -43,6 +43,7 @@ kotlin {
             // SLF4J
             implementation("org.slf4j:slf4j-api:2.0.15")
             implementation("com.github.knightwood:slf4j-api-kotlin:0.0.7")
+            implementation(libs.okio)
         }
 
         jvmMain.dependencies {
@@ -52,6 +53,22 @@ kotlin {
             }
             // logback-classic 1.3.15是最后的java 8 版本，后续版本要求java 11
             api("ch.qos.logback:logback-classic:1.5.12")
+            implementation(libs.jna)
+            implementation(libs.jna.platform)
+            implementation(libs.jnativehook)
+        }
+
+        configurations {
+            all {
+                exclude(group = "io.opentelemetry")
+                exclude(group = "io.opentelemetry.semconv")
+                exclude(group = "net.java.dev.jna", module = "jna-jpms")
+                exclude(group = "net.java.dev.jna", module = "jna-platform-jpms")
+                exclude(group = "org.seleniumhq.selenium", module = "selenium-firefox-driver")
+                exclude(group = "org.seleniumhq.selenium", module = "selenium-edge-driver")
+                exclude(group = "org.seleniumhq.selenium", module = "selenium-ie-driver")
+                exclude(group = "org.seleniumhq.selenium", module = "selenium-manager")
+            }
         }
     }
 }
