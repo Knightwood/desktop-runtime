@@ -10,6 +10,7 @@ import androidx.compose.desktop.runtime.viewmodel.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.jvm.system.core.AppPathProvider
 import com.github.knightwood.slf4j.kotlin.logger
 import me.i18n.resources.app_name
 import org.jetbrains.compose.resources.stringResource
@@ -67,6 +68,15 @@ open class TestActivity : ComponentActivity() {
 
                         val appname = stringResource(me.i18n.resources.Res.string.app_name)
                         Text(appname)
+                        val AppPathProvider = AppPathProvider.getInstance()
+                        val userHome = AppPathProvider.userHome
+                        val installPath = AppPathProvider.installPath
+                        val installedJarPath = AppPathProvider.installedJarPath
+                        val installedExePath = AppPathProvider.installedExePath
+                        val configPath = AppPathProvider.configDirPath
+                        val info = " 用户目录: $userHome\n 安装路径: $installPath\n 程序jar包路径: $installedJarPath\n exe文件路径: $installedExePath\n 配置目录路径: $configPath\n"
+                        Text(info)
+
                     }
                 }
             }

@@ -1,9 +1,9 @@
 package androidx.compose.desktop.runtime.utils
 
-import androidx.compose.desktop.runtime.system.utils.SystemOs
-import androidx.compose.desktop.runtime.system.utils.SystemProperty
-import androidx.compose.desktop.runtime.system.utils.currentOS
-import androidx.compose.desktop.runtime.system.utils.getWindowsVersion
+import androidx.jvm.system.utils.SystemOs
+import androidx.jvm.system.utils.SystemProperty
+import androidx.jvm.system.utils.currentOS
+import androidx.jvm.system.utils.getWindowsVersion
 
 
 val systemVer by lazy {

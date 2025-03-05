@@ -44,6 +44,7 @@ kotlin {
             implementation("org.slf4j:slf4j-api:2.0.15")
             implementation("com.github.knightwood:slf4j-api-kotlin:0.0.7")
             implementation(libs.okio)
+            implementation(project(":system-impl:spi"))
         }
 
         jvmMain.dependencies {

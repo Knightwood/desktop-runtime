@@ -3,11 +3,15 @@ androidx-lifecycle = "2.8.4"
 compose-multiplatform = "1.7.0"
 junit = "4.13.2"
 kotlin = "2.1.0"
+ksp = "2.1.0-1.0.29"
+
 coroutines = "1.10.1"
 okio = "3.10.2"
 jna = "5.16.0"
 jnativehook = "2.2.2"
 jsoup = "1.18.3"
+autoServiceKsp = "1.2.0"
+autoService = "1.1.1"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -20,6 +24,9 @@ kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-co
 kotlin-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing", version.ref = "coroutines" }
 kotlin-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlin-coroutines-slf4j = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j", version.ref = "coroutines" }
+
+autoService-ksp = { module = "dev.zacsweers.autoservice:auto-service-ksp", version.ref = "autoServiceKsp" }
+autoService-annoations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoService" }
 
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
@@ -34,3 +41,4 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 # 多平台库发布插件
 vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.29.0" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

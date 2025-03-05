@@ -1,4 +1,4 @@
-package androidx.compose.desktop.runtime.system.app
+package androidx.jvm.system.core
 
 /**
  * 应用启动后，将应用信息放到这里，方便其他模块使用
@@ -41,6 +41,6 @@ object AppInfoProvider {
  * @property appName 软件名称
  */
 data class AppInfo(
-    var isDevMode: Boolean = true,
+    var isDevMode: Boolean = false,
     var appName: String = "untitled",
 )

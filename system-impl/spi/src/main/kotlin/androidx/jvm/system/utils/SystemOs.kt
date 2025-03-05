@@ -1,4 +1,4 @@
-package androidx.compose.desktop.runtime.system.utils
+package androidx.jvm.system.utils
 
 enum class SystemOs {
     MacOS, Windows, Linux,

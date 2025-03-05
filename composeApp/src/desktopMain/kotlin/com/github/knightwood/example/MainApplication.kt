@@ -2,8 +2,8 @@ package com.github.knightwood.example
 
 import ch.qos.logback.classic.LoggerContext
 import androidx.compose.desktop.runtime.core.Application
-import androidx.compose.desktop.runtime.system.app.AppInfoProvider
-import androidx.compose.desktop.runtime.system.app.AppPathProvider
+import androidx.jvm.system.core.AppInfoProvider
+import androidx.jvm.system.core.AppPathProvider
 import org.slf4j.LoggerFactory
 import java.util.Locale
 
@@ -16,7 +16,7 @@ class MainApplication : Application() {
         AppInfoProvider.provide {
             appName = "测试"
         }
-        AppPathProvider.print()
+        AppPathProvider.getInstance().print()
     }
 
     override fun onDestroy() {

@@ -1,4 +1,4 @@
-package androidx.compose.desktop.runtime.system.app
+package androidx.jvm.system.core
 
 interface AppStartUpService {
     fun followConfig()               // 根据配置设置是否开机启动

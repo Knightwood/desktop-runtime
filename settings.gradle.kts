@@ -40,3 +40,7 @@ dependencyResolutionManagement {
 
 include(":composeApp")
 include(":impl")
+include(":system-impl:spi")
+include(":system-impl:linux")
+include(":system-impl:win")
+include(":system-impl:mac")
