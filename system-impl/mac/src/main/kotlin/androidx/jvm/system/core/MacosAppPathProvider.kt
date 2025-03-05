@@ -1,6 +1,4 @@
-package androidx.jvm.system
-import androidx.jvm.system.core.AppBasePathProvider
-import androidx.jvm.system.core.AppInfoProvider
+package androidx.jvm.system.core
 import androidx.jvm.system.utils.SystemProperty
 import androidx.jvm.system.utils.noOptionParent
 import com.google.auto.service.AutoService
