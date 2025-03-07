@@ -2,7 +2,6 @@ package com.github.knightwood.example
 
 import androidx.compose.desktop.runtime.core.Application
 import androidx.jvm.system.core.AppInfoProvider
-import androidx.jvm.system.core.AppPathProvider
 import ch.qos.logback.classic.LoggerContext
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -18,7 +17,6 @@ class MainApplication : Application() {
             appName = "测试"
             isDevMode = true
         }
-        AppPathProvider.getInstance().print()
     }
 
 

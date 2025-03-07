@@ -48,22 +48,24 @@ interface AppBasePathProvider {
      */
     val configDirPath: Path
 
-    fun print(){}
+    fun print() {}
 }
 
 /**
  * 提供应用的路径信息，比如应用安装目录，系统的用户目录等 提供如下目录：用户目录路径，软件安装路径，默认配置文件夹路径。 提供路径注册功能
  */
-class AppPathProvider private constructor() : AppBasePathProvider by SystemPath() {
+class AppPathProvider private constructor(
+    private val pathProviderImpl: AppBasePathProvider
+) : AppBasePathProvider by pathProviderImpl {
 
     override fun print() {
         logger.info {
-            val AppPathProvider = this
-            val userHome = AppPathProvider.userHome
-            val installPath = AppPathProvider.installPath
-            val installedJarPath = AppPathProvider.installedJarPath
-            val installedExePath = AppPathProvider.installedExePath
-            val configPath = AppPathProvider.configDirPath
+            val appPathProvider = this
+            val userHome = appPathProvider.userHome
+            val installPath = appPathProvider.installPath
+            val installedJarPath = appPathProvider.installedJarPath
+            val installedExePath = appPathProvider.installedExePath
+            val configPath = appPathProvider.configDirPath
             " 用户目录: $userHome\n 安装路径: $installPath\n 程序jar包路径: $installedJarPath\n exe文件路径: $installedExePath\n 配置目录路径: $configPath\n"
         }
     }
@@ -71,11 +73,17 @@ class AppPathProvider private constructor() : AppBasePathProvider by SystemPath(
     companion object {
         @Volatile
         internal var appPathProvider: AppPathProvider? = null
-        fun getInstance(): AppBasePathProvider {
+
+        fun getInstance(impl: AppBasePathProvider = SystemPath()): AppBasePathProvider {
             return appPathProvider ?: synchronized(this) {
-                appPathProvider ?: AppPathProvider().also { appPathProvider = it }
+                appPathProvider ?: AppPathProvider(impl).also { appPathProvider = it }
             }
         }
+
+        /**
+         * 使用属性获取实例
+         */
+        val AppPathProvider get() = getInstance()
     }
 }
 
