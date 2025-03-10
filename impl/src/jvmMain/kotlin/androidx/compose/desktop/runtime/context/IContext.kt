@@ -4,7 +4,14 @@ import androidx.compose.desktop.runtime.activity.*
 import androidx.compose.desktop.runtime.activity.Intent.Companion.plus
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
+import androidx.compose.runtime.staticCompositionLocalOf
 
+val LocalContext = staticCompositionLocalOf<IContext> {
+    noLocalProvidedFor("LocalContext")
+}
+ fun noLocalProvidedFor(name: String): Nothing {
+    error("CompositionLocal $name not present")
+}
 /**
  * 仿照android，context将提供很多的系统的api或是英勇的快捷操作
  */

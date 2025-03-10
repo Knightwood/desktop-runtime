@@ -57,7 +57,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.15")
     implementation("com.github.knightwood:slf4j-api-kotlin:0.0.7")
     // logback-classic 1.3.15是最后的java 8 版本，后续版本要求java 11
-    api("ch.qos.logback:logback-classic:1.5.12")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
 
     //jna
     implementation(libs.jna)

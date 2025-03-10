@@ -13,6 +13,7 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.lifecycle.Lifecycle.Event.ON_CREATE
 import androidx.lifecycle.Lifecycle.Event.ON_START
 import androidx.lifecycle.LifecycleOwner
+import com.github.knightwood.slf4j.kotlin.error
 import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.logger
 import kotlinx.coroutines.*
@@ -30,6 +31,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
      * 此协程最终会随着进程结束而结束，不必担心生命周期
      */
     val scope: CoroutineScope = CoroutineScope(Dispatchers.Default) + SupervisorJob() + CoroutineName("Application")
+
     /**
      * 若为true，则onCreate将使用协程初始化所有的aware逻辑块
      */
@@ -130,8 +132,13 @@ open class Application : ContextWrapper(), LifecycleOwner {
     internal suspend fun release() {
         withContext(MainUIDispatcher) {
             logger.info { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
-            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+            try {
+                lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+                lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+            } catch (e: Exception) {
+                logger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
+
+            }
             onDestroy()
             activityManager().release()
             windowManager().release()
@@ -144,7 +151,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
 /**
  * 从这里可以得到全局的application引用，用于上下文操作
  */
-internal var applicationInternal: Application = Application()
+internal lateinit var applicationInternal: Application
 private val lock = Any()
 
 //<editor-fold desc="与activity结合">
@@ -187,7 +194,7 @@ fun startApplication(
     intentBuilder: (Intent.() -> Unit)? = null
 ) {
     synchronized(lock) {
-        if (applicationInternal.fake) {
+        if (!::applicationInternal.isInitialized || applicationInternal.fake) {
             // 创建Application实例，并初始化；不要在此处给applicationInternal赋值，因为阻塞会导致永远不会赋值
             applicationClass.getDeclaredConstructor().newInstance().also {
                 applicationInternal = it

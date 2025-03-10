@@ -1,14 +1,27 @@
 package androidx.compose.desktop.runtime.activity
 
+import java.util.UUID
+
 
 data class Intent(
     val launchMode: LaunchMode = LaunchMode.STANDARD,
-    val data: Any? = null
+    var data: Any? = null
 ) {
     /**
-     * 是否在销毁window时保存状态，一边下一次打开activity时恢复状态
+     * 是否在销毁activity时销毁保存的状态。
+     * desktop端并没有重建activity保存状态的需求，ComponentActivity实现目的在于兼容android组件。
+     * 如果存在activity启动后恢复上一次activity关闭时保存数据的需求，把此字段置为false。
+     * 否则，activity销毁时也会连带着销毁存储的状态。
      */
-    var saveState: Boolean = false
+    var clearSaveState: Boolean = true
+
+    /**
+     * 如果不为null，则启动的activity使用此uuid标记自己。
+     * 如果不为null，下一次恢复数据时将使用此uuid读取保存的数据。
+     *
+     * 可是，实现状态保存和恢复，在桌面端真的有意义吗？
+     */
+    var uuid: String? = null
 
     /**
      * If true, the activity will not be attached to current application scope

@@ -1,93 +1,77 @@
-//package androidx.compose.desktop.runtime.fragment
-//
-//import androidx.compose.desktop.runtime.viewmodel.createVM
-//import androidx.lifecycle.*
-//import androidx.lifecycle.viewmodel.CreationExtras
-//import androidx.savedstate.SavedStateRegistry
-//import androidx.savedstate.SavedStateRegistryController
-//import androidx.savedstate.SavedStateRegistryOwner
-//import kotlin.reflect.KClass
-//
-//
-///**
-// * 包装DialogWindow
-// *
-// * ```
-// * var isDialogOpen by remember { mutableStateOf(false) }
-// *
-// * Button(onClick = { isDialogOpen = true }) {
-// *     Text(text = "Open dialog")
-// * }
-// *
-// * if (isDialogOpen) {
-// *     DialogWindow(
-// *         onCloseRequest = { isDialogOpen = false },
-// *         state = rememberDialogState(position = WindowPosition(Alignment.Center))
-// *     ) {
-// *         // Content of the window
-// *     }
-// * }
-// * ```
-// */
-//abstract class Fragment : ViewModelStoreOwner, LifecycleOwner,
-//    HasDefaultViewModelProviderFactory, SavedStateRegistryOwner {
-//
-//    @Suppress("LeakingThis")
-//    private var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this@Fragment)
-//    override val lifecycle: Lifecycle
-//        get() = lifecycleRegistry
-//
-//    private var _viewModelStore: ViewModelStore? = null
-//    override val viewModelStore: ViewModelStore
-//        /**
-//         * Returns the [ViewModelStore] associated with this activity
-//         *
-//         * @return a [ViewModelStore]
-//         * @throws IllegalStateException if called before the Activity is attached
-//         *    to the Application instance i.e., before onCreate()
-//         */
-//        get() {
-//            check(application.fake) {
-//                ("Your activity is not yet attached to the " +
-//                        "Application instance. You can't request ViewModel before onCreate call.")
-//            }
-//            ensureViewModelStore()
-//            return _viewModelStore!!
-//        }
-//
-//    @Suppress("LeakingThis")
-//    private val savedStateRegistryController: SavedStateRegistryController =
-//        SavedStateRegistryController.create(this)
-//
-//    override val savedStateRegistry: SavedStateRegistry
-//        get() = savedStateRegistryController.savedStateRegistry
-//
-//    init {
-//        @Suppress("LeakingThis")
-//        lifecycle.addObserver(object : LifecycleEventObserver {
-//            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-//                if (event == Lifecycle.Event.ON_DESTROY) {
-//                    viewModelStore.clear()
-//                }
-//            }
-//        })
-//        savedStateRegistryController.performAttach()
-//        enableSavedStateHandles()
-//        savedStateRegistryController.performRestore(null)
-//    }
-//
-//    private fun ensureViewModelStore() {
-//        if (_viewModelStore == null) {
-//            _viewModelStore = ViewModelStore()
-//        }
-//    }
-//
-//    override val defaultViewModelProviderFactory: ViewModelProvider.Factory by lazy {
-//        object : ViewModelProvider.Factory {
-//            override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
-//                return createVM(modelClass.java, extras)
-//            }
-//        }
-//    }
-//
-//}
+package androidx.compose.desktop.runtime.fragment
+
+import androidx.compose.desktop.runtime.activity.FragmentActivity
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.core.bundle.Bundle
+import androidx.lifecycle.*
+
+open class Fragment() : Component() {
+    val mVisibility = mutableStateOf(false)
+    var activity: FragmentActivity? = null
+    internal var mComposeView: FragmentComposeView? = null
+    val parentLifecycle: Lifecycle
+        get() {
+            if (activity == null) {
+                throw IllegalStateException("activity is null")
+            } else {
+                return activity!!.lifecycle
+            }
+        }
+    val bundle: Bundle
+        get() = activity!!.componentBundle.obtainBundle(mWho)
+
+    fun requireActivity(): FragmentActivity {
+        if (activity == null) {
+            throw IllegalStateException("activity is null")
+        } else {
+            return activity!!
+        }
+    }
+
+    fun attach(activity: FragmentActivity) {
+        this.activity = activity
+        parentLifecycle.addObserver(this)
+    }
+
+    /**
+     * 重写此方法，调用[ComposeView]并return提供界面
+     */
+    open fun onCreateView(): FragmentComposeView? {
+        return null
+    }
+
+    /**
+     * 在activity中调用此方法显示界面
+     */
+    @Composable
+    fun screen() {
+        if (this.mComposeView == null)
+            this.mComposeView = onCreateView()
+        if (mVisibility.value) {
+            this.mComposeView?.invoke()
+        }
+    }
+
+    fun ComposeView(content: @Composable () -> Unit): FragmentComposeView {
+        return FragmentComposeView { key(mWho) { content() } }
+    }
+
+    fun show() {
+        mVisibility.value = true
+    }
+
+    fun hide() {
+        mVisibility.value = false
+    }
+
+    override fun provideSaveState(): Bundle = bundle
+
+}
+
+
+fun interface FragmentComposeView {
+    @Composable
+    fun invoke()
+}

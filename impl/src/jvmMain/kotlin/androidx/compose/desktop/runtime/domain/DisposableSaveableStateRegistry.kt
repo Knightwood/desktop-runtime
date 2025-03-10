@@ -2,16 +2,50 @@
 
 package androidx.compose.desktop.runtime.domain
 
-import androidx.compose.runtime.neverEqualPolicy
-import androidx.compose.runtime.referentialEqualityPolicy
+import androidx.compose.desktop.runtime.context.IContext
+import androidx.compose.desktop.runtime.context.LocalContext
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.saveable.SaveableStateRegistry
 import androidx.compose.runtime.snapshots.SnapshotMutableState
-import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.core.bundle.Bundle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
 import java.io.Serializable
 
+/**
+ * 功能类似android中调用setContent时，其内部提供LocalSaveableStateRegistry。
+ */
+@Composable
+fun ProvideAndroidCompositionLocals(
+    id: String,
+    context: IContext,
+    lifecycleOwner: LifecycleOwner,
+    viewModelStoreOwner: ViewModelStoreOwner,
+    savedStateRegistryOwner: SavedStateRegistryOwner,
+    content: @Composable () -> Unit
+) {
+    val saveableStateRegistry = remember {
+        DisposableSaveableStateRegistry(id, savedStateRegistryOwner)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            saveableStateRegistry.dispose()
+        }
+    }
+    CompositionLocalProvider(
+        LocalContext provides context,
+        LocalLifecycleOwner provides lifecycleOwner,
+        LocalViewModelStoreOwner provides viewModelStoreOwner,
+        LocalSaveableStateRegistry provides saveableStateRegistry,
+    ) {
+        content()
+    }
+}
 
 /**
  * Creates [DisposableSaveableStateRegistry] with the restored values using
@@ -33,13 +67,13 @@ internal fun DisposableSaveableStateRegistry(
 ): DisposableSaveableStateRegistry {
     val key = "${SaveableStateRegistry::class.java.simpleName}:$id"
 
+    //获取从activity中的savedStateRegistry
     val androidxRegistry = savedStateRegistryOwner.savedStateRegistry
+    //使用key得到之前保存的数据
     val bundle = androidxRegistry.consumeRestoredStateForKey(key)
     val restored: Map<String, List<Any?>>? = bundle?.toMap()
 
-    val saveableStateRegistry = SaveableStateRegistry(restored) {
-        canBeSavedToBundle(it)
-    }
+    val saveableStateRegistry = SaveableStateRegistry(restoredValues = restored, canBeSaved = ::canBeSavedToBundle)
     val registered = try {
         androidxRegistry.registerSavedStateProvider(key) {
             saveableStateRegistry.performSave().toBundle()
@@ -94,12 +128,14 @@ private fun canBeSavedToBundle(value: Any): Boolean {
     if (value is Function<*> && value is Serializable) {
         return false
     }
-    for (cl in AcceptableClasses) {
-        if (cl.isInstance(value)) {
-            return true
-        }
-    }
-    return false
+//    for (cl in AcceptableClasses) {
+//        if (cl.isInstance(value)) {
+//            return true
+//        }
+//    }
+//    return false
+    //因为我们总是把他们存在内存里，我们不需要检查类型
+    return true
 }
 
 /**
@@ -121,14 +157,18 @@ private fun canBeSavedToBundle(value: Any): Boolean {
  */
 private val AcceptableClasses = arrayOf(
     Serializable::class.java,
+//    Parcelable::class.java,
     String::class.java,
+//    SparseArray::class.java,
+//    Binder::class.java,
+//    Size::class.java,
+//    SizeF::class.java
 )
 
-@Suppress("DEPRECATION")
 private fun Bundle.toMap(): Map<String, List<Any?>> {
     val map = mutableMapOf<String, List<Any?>>()
     this.keySet().filterNotNull().forEach { key ->
-        val list = (getBundleArray(key)?.toList() ?: emptyList<Any?>()) as ArrayList<Any?>
+        val list = (getData(key) ?: emptyList<Any?>()) as ArrayList<Any?>
         map[key] = list
     }
     return map
@@ -137,11 +177,34 @@ private fun Bundle.toMap(): Map<String, List<Any?>> {
 private fun Map<String, List<Any?>>.toBundle(): Bundle {
     val bundle = Bundle()
     forEach { (key, list) ->
-        val arrayList = if (list is ArrayList<Any?>) list.toArray() else arrayOf(list)
-        bundle.putBundleArray(
-            key,
-            arrayList as Array<Bundle?>?
-        )
+        val arrayList = if (list is ArrayList<Any?>) list else ArrayList(list)
+        bundle.setObjectFixed(key, arrayList)
     }
     return bundle
 }
+
+
+//<editor-fold desc="反射Bundle">
+/**
+ * 反射Bundle中的bundleData
+ */
+fun Bundle.setObjectFixed(key: String, value: Any?) {
+    val map = this.fix()
+    map.put(key, value)
+}
+
+/**
+ * 反射Bundle中的bundleData
+ */
+fun Bundle.getData(key: String): Any? {
+    val map = this.fix()
+    return map.get(key)
+}
+
+fun Bundle.fix(): MutableMap<String, Any?> {
+    val field = this.javaClass.getDeclaredField("bundleData")
+    field.isAccessible = true
+    val map = field.get(this) as MutableMap<String, Any?>
+    return map
+}
+//</editor-fold>

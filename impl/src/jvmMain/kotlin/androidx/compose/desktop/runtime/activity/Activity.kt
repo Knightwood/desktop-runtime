@@ -10,13 +10,9 @@ import androidx.lifecycle.Lifecycle.Event.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.desktop.runtime.context.IContext
 import androidx.compose.desktop.runtime.context.ThemedContext
-import androidx.compose.desktop.runtime.window.ContentWrapper
 import androidx.compose.desktop.runtime.window.DesktopWindow
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.window.*
 import androidx.core.bundle.Bundle
-import com.github.knightwood.slf4j.kotlin.logger
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -56,8 +52,6 @@ fun interface ActivityResult {
  * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver {
-    internal var bundle: Bundle? = null
-
     lateinit var mWindow: DesktopWindow
     lateinit var intent: Intent
 
@@ -65,13 +59,26 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     protected var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this@Activity)
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
-    val uuid = UUID.randomUUID()
+
+    /**
+     * uuid是activity的唯一标识，可以用于activity保存和回复状态，从[ActivityManager]获取实例等
+     */
+    var uuid :String= UUID.randomUUID().toString()
+        private set
+
+    /**
+     * 用于保存和恢复activity的状态
+     */
+    val bundle
+        get() = activityManager().obtainBundle(uuid)
     private var result: ActivityResult? = null
 
     /**
      * activity实现了IContext接口
      */
     val context get() = this
+
+    private var finished: Boolean = false
 
     /**
      * 1. activity将自己注册进[ActivityManager]
@@ -85,13 +92,16 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     ) {
         mBase = context
         this.intent = intent
+        intent.uuid?.let {
+            this.uuid = it
+        }
         this.result = block
         if (!this::mWindow.isInitialized) {
             mWindow = DesktopWindow(this, windowManager(), intent.multiApplication)
         }
         ActivityManager.register(uuid, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-        onCreate()
+        onCreate(bundle)
     }
 
     /**
@@ -110,23 +120,22 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 
     /**
      * 观察window的生命周期，并进行部分同步
-     * 当window销毁时，activity的生命周期不能走到destroy，仅调用onDestroyView即可。
+     * 当window销毁时，activity的生命周期就走到destroy
      */
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
 //        logger.info("window event: $event")
-        syncLife(event)
+        syncLife(event, finished)
         when (event) {
             ON_RESUME -> onResume()
             ON_PAUSE -> onPause()
-            ON_STOP -> {
-                onStop()
-                onSaveInstanceState(bundle ?: let {
-                    this.bundle = Bundle()
-                    this.bundle!!
-                })
+            ON_STOP -> onStop()
+            ON_DESTROY -> {
+                onSaveInstanceState(bundle)
+                if (finished) {
+                    onDestroy()
+                }
             }
 
-            ON_DESTROY -> onDestroyView()//window不显示，生命周期走到了destroy，但是activity还不能到destroy的时候
             ON_START -> onStart()
             else -> {}
         }
@@ -138,12 +147,12 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      * @param data 启动此Activity附带的数据
      */
     @CallSuper
-    open fun onCreate() {
+    open fun onCreate(savedInstanceState: Bundle?) {
         lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
     }
 
-    protected open fun onSaveInstanceState(outState: Bundle) {
+    open fun onSaveInstanceState(outState: Bundle) {
         val lifecycle = lifecycle
         if (lifecycle is LifecycleRegistry) {
             lifecycle.currentState = Lifecycle.State.CREATED
@@ -152,7 +161,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 
     open fun onStart() {}
 
-    fun setContentView(content: @Composable ApplicationScope.() -> Unit) {
+   open fun setContent(content: @Composable ApplicationScope.() -> Unit) {
         if (!this::mWindow.isInitialized) {
             throw IllegalStateException("window is not initialized")
         }
@@ -206,30 +215,23 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     }
 
     @CallSuper
-    open fun onDestroyView() {
-    }
-
-    @CallSuper
     open fun onDestroy() {
     }
 
     /**
      * 1. 从ActivityManager中移出自己
-     * 2. 从windowManager移出window，调用[onDestroyView]方法
+     * 2. 从windowManager移出window，调用[onDestroy]方法
      * 3. 进入[ON_DESTROY]状态，并调用[onDestroy]方法
      */
     @CallSuper
     open fun finish() {
+        finished = true
         if (intent.multiApplication) { // 多application模式，会结束整个应用进程
             ActivityManager.remove(uuid)
             mWindow.release()//多实例模式下，进行到这一步时，应用的生命就结束了
-            onDestroy()
-            syncLife(Lifecycle.Event.ON_DESTROY, true)
         } else {// 单application模式，关闭窗口
             ActivityManager.remove(uuid)
             mWindow.release()
-            onDestroy()
-            syncLife(Lifecycle.Event.ON_DESTROY, true)
         }
     }
 

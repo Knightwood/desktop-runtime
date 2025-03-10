@@ -1,22 +1,29 @@
 package androidx.compose.desktop.runtime.domain
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.*
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.savedstate.SavedStateRegistryOwner
 import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.random.Random
+
+
+
+
+/**
+ * 功能类似于NavHost中提供的LocalSaveableStateRegistry
+ */
+@Composable
+fun NavHostSaveStateProvider(
+    content: @Composable () -> Unit
+) {
+    val saveableStateHolder = rememberSaveableStateHolder()
+    saveableStateHolder.SaveableStateProvider(content)
+}
 
 @Suppress("ACTUAL_WITHOUT_EXPECT") // https://youtrack.jetbrains.com/issue/KT-37316
 internal class WeakReference<T : Any> constructor(reference: T) {
@@ -93,29 +100,3 @@ internal class BackStackEntryIdViewModel(handle: SavedStateHandle) : ViewModel()
     }
 }
 
-
-@Composable
-fun ProvideSaveStateHolder(
-    id:String,
-    lifecycleOwner: LifecycleOwner,
-    viewModelStoreOwner: ViewModelStoreOwner,
-    savedStateRegistryOwner: SavedStateRegistryOwner,
-    content: @Composable () -> Unit
-) {
-    val saveableStateRegistry = remember {
-        DisposableSaveableStateRegistry(id, savedStateRegistryOwner)
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            saveableStateRegistry.dispose()
-        }
-    }
-    CompositionLocalProvider(
-        LocalLifecycleOwner provides lifecycleOwner,
-        LocalViewModelStoreOwner provides viewModelStoreOwner,
-        LocalSaveableStateRegistry provides saveableStateRegistry,
-    ) {
-        val saveableStateHolder = rememberSaveableStateHolder()
-        saveableStateHolder.SaveableStateProvider(content)
-    }
-}

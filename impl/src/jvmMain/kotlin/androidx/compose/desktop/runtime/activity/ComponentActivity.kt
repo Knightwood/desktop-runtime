@@ -1,6 +1,7 @@
 package androidx.compose.desktop.runtime.activity
 
-import androidx.compose.desktop.runtime.domain.ProvideSaveStateHolder
+import androidx.annotation.CallSuper
+import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocals
 import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -31,7 +32,6 @@ import kotlin.reflect.KClass
  *    registerSavedStateProvider() 方法时一样的 key 来取数据，并在取了之后将数据从
  *    mRestoredState 中移除。
  * 6. ViewModel创建时默认已经实现了SavedStateProvider等接口，实现了数据保存时从ViewModel中获取数据，恢复时给ViewModel赋值。
- * 7. 存储的数据不能存超过1M
  *
  * ```
  * class TestViewModel(
@@ -139,25 +139,18 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
                 }
             }
         })
-        //经过测试，应该是屏幕旋转，自动调用onSaveInstanceState才会保存数据，
-        //旋转之后，数据会自动恢复，remembersaveable这是存回起作用。
-        //如果只是单纯的重组，因为没有报错数据，remembersavable也是不生效的
         savedStateRegistryController.performAttach()
         enableSavedStateHandles()
     }
 
-    override fun onCreate() {
+    override fun onCreate(savedInstanceState: Bundle?) {
         savedStateRegistryController.performRestore(bundle)
-        bundle = null
-        super.onCreate()
+        super.onCreate(savedInstanceState)
     }
 
     override fun show() {
         if (mWindow.exit.value) {//已经退出，需要重建activity
             ActivityManager.register(uuid, this)
-            // FIXME:  报错SavedStateRegistry was already restored.
-//            savedStateRegistryController.performRestore(bundle)
-//            bundle = null
             lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
             lifecycleRegistry.currentState = Lifecycle.State.CREATED
             mWindow.active()
@@ -168,7 +161,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
         }
     }
 
-    protected override fun onSaveInstanceState(outState: Bundle) {
+    override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         savedStateRegistryController.performSave(outState)
     }
@@ -196,6 +189,13 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
             return extras
         }
 
+    @CallSuper
+    override fun onDestroy() {
+        super.onDestroy()
+        if (intent.clearSaveState){
+            activityManager().clearBundle(uuid)
+        }
+    }
     /**
      * 创建一个ComposeView，并绑定生命周期。
      *
@@ -218,7 +218,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
         state: WindowState = rememberWindowState(),
         title: String = "Untitled",
         icon: Painter? = null,
-        closeActivity: Boolean = false,
+        closeActivity: Boolean = true,
         undecorated: Boolean = false,
         transparent: Boolean = false,
         resizable: Boolean = true,
@@ -229,12 +229,13 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
         onKeyEvent: (KeyEvent) -> Boolean = { false },
         content: @Composable FrameWindowScope.() -> Unit
     ) {
-//        ProvideSaveStateHolder(
-//            id = uuid.toString(),
-//            this@ComponentActivity,
-//            this@ComponentActivity,
-//            this@ComponentActivity
-//        ) {
+        ProvideAndroidCompositionLocals(
+            id = uuid.toString(),
+            this,
+            this@ComponentActivity,
+            this@ComponentActivity,
+            this@ComponentActivity
+        ) {
             Window(
                 onCloseRequest = if (closeActivity) ::finish else ::hide,
                 state = state,
@@ -257,6 +258,6 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
                     content()
                 }
             )
-//        }
+        }
     }
 }
