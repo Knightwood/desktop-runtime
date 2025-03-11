@@ -11,6 +11,9 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
+import com.github.knightwood.slf4j.kotlin.logger
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import java.util.*
 import kotlin.reflect.KClass
 
@@ -36,10 +39,17 @@ interface ScreenComponentCallback {
  */
 abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, LifecycleEventObserver,
     HasDefaultViewModelProviderFactory, SavedStateRegistryOwner, ScreenComponentCallback {
-    // Internal unique name for this fragment;
+
     var uuid: String = UUID.randomUUID().toString()
     lateinit var bundleHolder: IBundleHolder
+
+    /**
+     * 是否在结束后清除bundle，大多数时候我们不需要恢复状态特性，因此默认为true。
+     */
     var clearBundle: Boolean = true
+
+    // 组件是否已经释放
+    val released: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     @Suppress("LeakingThis")
     private var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this)
@@ -91,16 +101,12 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     }
 
     /**
-     * observe activity lifecycle
+     * observe parent lifecycle
      */
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
         when (event) {
             ON_DESTROY -> {
-                if (clearBundle) {
-                    bundleHolder.clearBundle(uuid)
-                } else {
-                    onSaveInstanceState(bundleHolder.obtainBundle(uuid))
-                }
+                onDestroy()
             }
 
             else -> {}
@@ -131,6 +137,19 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
 //        logger.info("保存状态，uuid:$uuid")
     }
 
+    @CallSuper
+    open fun onDestroy() {
+        if (clearBundle) {
+            bundleHolder.clearBundle(uuid)
+        } else {
+            onSaveInstanceState(bundleHolder.obtainBundle(uuid))
+        }
+        lifecycleScope.launch {
+            released.emit(true)
+//            logger.info("释放组件，uuid:$uuid")
+        }
+    }
+
     private fun ensureViewModelStore() {
         if (_viewModelStore == null) {
             _viewModelStore = ViewModelStore()
@@ -141,12 +160,8 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
      * 手动结束生命周期
      */
     fun release() {
+        onDestroy()//必须要在同步生命周期前调用，否则lifecycleScope会结束，导致无法正常释放
         syncLife(ON_DESTROY)
-        if (clearBundle) {
-            bundleHolder.clearBundle(uuid)
-        } else {
-            onSaveInstanceState(bundleHolder.obtainBundle(uuid))
-        }
     }
 
     override val defaultViewModelProviderFactory: ViewModelProvider.Factory by lazy {

@@ -1,7 +1,7 @@
 package androidx.compose.desktop.runtime.viewmodel
 
 import androidx.annotation.MainThread
-import androidx.compose.desktop.runtime.fragment.ScreenComponent
+import androidx.compose.desktop.runtime.fragment.Fragment
 import androidx.lifecycle.*
 import androidx.lifecycle.ViewModelProvider.Factory
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -9,7 +9,7 @@ import kotlin.reflect.KClass
 
 
 @MainThread
-public inline fun <reified VM : ViewModel> ScreenComponent.viewModels(
+public inline fun <reified VM : ViewModel> Fragment.viewModels(
     noinline ownerProducer: () -> ViewModelStoreOwner = { this },
     noinline extrasProducer: (() -> CreationExtras)? = null,
     noinline factoryProducer: (() -> Factory)? = null
@@ -41,7 +41,7 @@ public inline fun <reified VM : ViewModel> ScreenComponent.viewModels(
 //)
 
 @MainThread
-public fun <VM : ViewModel> ScreenComponent.createViewModelLazy(
+public fun <VM : ViewModel> Fragment.createViewModelLazy(
     viewModelClass: KClass<VM>,
     storeProducer: () -> ViewModelStore,
     extrasProducer: () -> CreationExtras = { defaultViewModelCreationExtras },

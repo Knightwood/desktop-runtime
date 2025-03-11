@@ -9,6 +9,7 @@ import androidx.lifecycle.*
 
 /**
  * 用法：
+ *
  * ```
  * class ScreenComponent1 : ScreenComponent() {
  *     init {
@@ -29,14 +30,13 @@ import androidx.lifecycle.*
  * a()//显示界面
  * ```
  */
-open class ScreenComponent() : IScreenComponent() {
+open class Fragment() : IScreenComponent() {
     val mVisibility = mutableStateOf(true)
     private var mComposeView: ComponentViewHolder? = null
-
     override fun onStateChanged(event: Lifecycle.Event) {}
 
     fun attach(parentLifecycle: Lifecycle, bundleHolder: IBundleHolder) {
-        prepare(parentLifecycle,bundleHolder)//先初始化，然后监听父级的生命周期进行同步
+        prepare(parentLifecycle, bundleHolder)//先初始化，然后监听父级的生命周期进行同步
     }
 
     /**
@@ -58,27 +58,27 @@ open class ScreenComponent() : IScreenComponent() {
         }
     }
 
-    fun ComposeView(content: @Composable () -> Unit): ComponentViewHolder {
+    open fun ComposeView(content: @Composable () -> Unit): ComponentViewHolder {
         return ComponentViewHolder {
-            key(uuid) {
-                ProvideAndroidCompositionLocals(
-                    id = uuid,
-                    context = null,
-                    lifecycleOwner = this,
-                    viewModelStoreOwner = this,
-                    savedStateRegistryOwner = this
-                ) {
+            ProvideAndroidCompositionLocals(
+                id = uuid,
+                context = null,
+                lifecycleOwner = this,
+                viewModelStoreOwner = this,
+                savedStateRegistryOwner = this
+            ) {
+                key(uuid) {
                     content()
                 }
             }
         }
     }
 
-    fun show() {
+    open fun show() {
         mVisibility.value = true
     }
 
-    fun hide() {
+    open fun hide() {
         mVisibility.value = false
     }
 

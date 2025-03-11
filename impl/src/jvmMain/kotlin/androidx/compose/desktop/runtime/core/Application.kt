@@ -131,13 +131,12 @@ open class Application : ContextWrapper(), LifecycleOwner {
      */
     internal suspend fun release() {
         withContext(MainUIDispatcher) {
-            logger.info { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
             try {
+                // FIXME: 不知道为什么有时候他的生命周期状态会退回到`INITIALIZED`，但这不妨碍我们结束应用
                 lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
                 lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
             } catch (e: Exception) {
                 logger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
-
             }
             onDestroy()
             activityManager().release()

@@ -1,12 +1,9 @@
 package androidx.compose.desktop.runtime.activity
 
 import androidx.compose.desktop.runtime.fragment.IScreenComponentManager
-import androidx.compose.desktop.runtime.fragment.ScreenComponentStackManager
-import androidx.compose.desktop.runtime.fragment.ScreenComponent
-import androidx.compose.desktop.runtime.fragment.ScreenComponentManager
-import androidx.lifecycle.LifecycleOwner
+import androidx.compose.desktop.runtime.fragment.FragmentManager
 
-open class FragmentActivity() : ComponentActivity(), IScreenComponentManager by ScreenComponentManager() {
+open class FragmentActivity() : ComponentActivity(), IScreenComponentManager by FragmentManager() {
     init {
         provideLifeCycle(this)
     }

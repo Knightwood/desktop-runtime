@@ -172,26 +172,6 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 
     }
 
-
-//    fun test() {
-//        setContent {
-//            val b = 1
-//            wrap {
-//                println(b)
-//            }
-//        }
-//    }
-//
-//    fun setContent(content: ContentWrapper.() -> Unit) {
-//        val contentWrapper = object : ContentWrapper {
-//            val a = 1
-//            override fun wrap(content: @Composable () -> Unit): () -> Unit {
-//                TODO("Not yet implemented")
-//            }
-//        }
-//        contentWrapper.content()
-//    }
-
     /**
      * 当为单例模式时，再次启动activity将回调此方法。
      *

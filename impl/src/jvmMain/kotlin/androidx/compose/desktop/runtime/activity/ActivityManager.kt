@@ -11,6 +11,7 @@ interface IBundleHolder {
     fun obtainBundle(uuid: String): Bundle
     fun obtainBundleNullable(uuid: String): Bundle?
     fun clearBundle(uuid: String)
+    fun clear()
 }
 
 class BundleHolder :IBundleHolder{
@@ -29,6 +30,9 @@ class BundleHolder :IBundleHolder{
 
     override fun clearBundle(uuid: String) {
         bundleSaverMap.remove(uuid)
+    }
+    override fun clear() {
+        bundleSaverMap.clear()
     }
 }
 
