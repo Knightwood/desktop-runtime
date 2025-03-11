@@ -1,21 +1,18 @@
 package androidx.compose.desktop.runtime.activity
 
-import androidx.compose.desktop.runtime.fragment.FragmentManager
-import androidx.compose.desktop.runtime.fragment.Fragment
+import androidx.compose.desktop.runtime.fragment.IScreenComponentManager
+import androidx.compose.desktop.runtime.fragment.ScreenComponentStackManager
+import androidx.compose.desktop.runtime.fragment.ScreenComponent
+import androidx.compose.desktop.runtime.fragment.ScreenComponentManager
+import androidx.lifecycle.LifecycleOwner
 
-open class FragmentActivity : ComponentActivity() {
-    val fragmentManager: FragmentManager = FragmentManager()
-    val componentBundle: BundleHolder = BundleHolder()
-
-    inline fun <reified T : Fragment> register() {
-        val fragment = T::class.java.getDeclaredConstructor().newInstance()
-        fragmentManager.push(fragment)
-        fragment.attach(this)
+open class FragmentActivity() : ComponentActivity(), IScreenComponentManager by ScreenComponentManager() {
+    init {
+        provideLifeCycle(this)
     }
 
-    fun unregister(fragment: Fragment) {
-        fragmentManager.pop(fragment)
-        fragment.release()
+    override fun onDestroy() {
+        super.onDestroy()
+        clearScreenComponent()
     }
-
 }

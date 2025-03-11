@@ -21,7 +21,7 @@ package androidx.compose.desktop.runtime.fragment
  * }
  * ```
  */
-abstract class DialogFragment : Fragment() {
+abstract class DialogScreenComponent  {
 
 
 }

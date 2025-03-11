@@ -23,7 +23,7 @@ import java.io.Serializable
 @Composable
 fun ProvideAndroidCompositionLocals(
     id: String,
-    context: IContext,
+    context: IContext?,
     lifecycleOwner: LifecycleOwner,
     viewModelStoreOwner: ViewModelStoreOwner,
     savedStateRegistryOwner: SavedStateRegistryOwner,
@@ -38,7 +38,7 @@ fun ProvideAndroidCompositionLocals(
         }
     }
     CompositionLocalProvider(
-        LocalContext provides context,
+        LocalContext provides (context ?: LocalContext.current),
         LocalLifecycleOwner provides lifecycleOwner,
         LocalViewModelStoreOwner provides viewModelStoreOwner,
         LocalSaveableStateRegistry provides saveableStateRegistry,

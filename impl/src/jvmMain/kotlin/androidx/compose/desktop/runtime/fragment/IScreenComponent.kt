@@ -1,8 +1,8 @@
 package androidx.compose.desktop.runtime.fragment
 
 import androidx.annotation.CallSuper
+import androidx.compose.desktop.runtime.activity.IBundleHolder
 import androidx.compose.desktop.runtime.viewmodel.createVM
-import androidx.compose.runtime.Composable
 import androidx.core.bundle.Bundle
 import androidx.lifecycle.*
 import androidx.lifecycle.Lifecycle.Event.*
@@ -14,22 +14,32 @@ import androidx.savedstate.SavedStateRegistryOwner
 import java.util.*
 import kotlin.reflect.KClass
 
+interface ScreenComponentCallback {
+    /**
+     * 子组件复写此方法可以知道当前生命周期
+     */
+    fun onStateChanged(event: Lifecycle.Event)
+}
+
 /**
- * ```
- * class TestComponent :Component()
+ * 提供了生命周期、ViewModelStoreOwner、SavedStateRegistryOwner等基础组件
+ * 可用于作为一个ui片段的容器，类似于fragment
  *
- * val a = TestComponent()
- * a.attach()
- * a.release()
+ * ```
+ * open class ScreenComponent() : IScreenComponent() {
+ *
+ * }
+ *
+ * val screen =ScreenComponent()
+ * screen.prepare(lifecycleOwner.lifecycle, componentBundle)
  * ```
  */
-abstract class Component() : ViewModelStoreOwner, LifecycleOwner, LifecycleEventObserver,
-    HasDefaultViewModelProviderFactory, SavedStateRegistryOwner {
-
-    private var finished: Boolean = false
-
+abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, LifecycleEventObserver,
+    HasDefaultViewModelProviderFactory, SavedStateRegistryOwner, ScreenComponentCallback {
     // Internal unique name for this fragment;
-    var mWho: String = UUID.randomUUID().toString()
+    var uuid: String = UUID.randomUUID().toString()
+    lateinit var bundleHolder: IBundleHolder
+    var clearBundle: Boolean = true
 
     @Suppress("LeakingThis")
     private var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this)
@@ -71,12 +81,13 @@ abstract class Component() : ViewModelStoreOwner, LifecycleOwner, LifecycleEvent
     }
 
     /**
-     * 如果构造函数中没有传入lifecycle。
-     * 可以在生成实例后，调用此方法开始此类的生命周期流程
+     * 在生成实例后，调用此方法开始此类的生命周期流程
      */
-    fun attach() {
+    fun prepare(parentLifecycle: Lifecycle, bundleHolder: IBundleHolder) {
+        this.bundleHolder = bundleHolder
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-        onCreate(provideSaveState())
+        onCreate(bundleHolder.obtainBundleNullable(uuid))
+        parentLifecycle.addObserver(this)
     }
 
     /**
@@ -84,28 +95,19 @@ abstract class Component() : ViewModelStoreOwner, LifecycleOwner, LifecycleEvent
      */
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
         when (event) {
-            ON_CREATE->{
-                //add observer to attached activity
-                attach()
-            }
             ON_DESTROY -> {
-                onSaveInstanceState(provideSaveState())
-                if (finished) {
-                    onDestroy()
+                if (clearBundle) {
+                    bundleHolder.clearBundle(uuid)
+                } else {
+                    onSaveInstanceState(bundleHolder.obtainBundle(uuid))
                 }
             }
 
             else -> {}
         }
         syncLife(event)
+        onStateChanged(event)
     }
-
-    /**
-     * 提供用于保存和回复状态的Bundle
-     */
-    abstract fun provideSaveState(): Bundle
-
-    open fun onDestroy() {}
 
     /**
      * sync activity lifecycle to fragment lifecycle
@@ -117,6 +119,7 @@ abstract class Component() : ViewModelStoreOwner, LifecycleOwner, LifecycleEvent
 
     @CallSuper
     open fun onCreate(savedInstanceState: Bundle?) {
+//        logger.info("恢复状态，uuid:$uuid")
         savedStateRegistryController.performRestore(savedInstanceState)
         lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
@@ -125,6 +128,7 @@ abstract class Component() : ViewModelStoreOwner, LifecycleOwner, LifecycleEvent
     @CallSuper
     fun onSaveInstanceState(outState: Bundle) {
         savedStateRegistryController.performSave(outState)
+//        logger.info("保存状态，uuid:$uuid")
     }
 
     private fun ensureViewModelStore() {
@@ -133,8 +137,16 @@ abstract class Component() : ViewModelStoreOwner, LifecycleOwner, LifecycleEvent
         }
     }
 
+    /**
+     * 手动结束生命周期
+     */
     fun release() {
         syncLife(ON_DESTROY)
+        if (clearBundle) {
+            bundleHolder.clearBundle(uuid)
+        } else {
+            onSaveInstanceState(bundleHolder.obtainBundle(uuid))
+        }
     }
 
     override val defaultViewModelProviderFactory: ViewModelProvider.Factory by lazy {

@@ -7,17 +7,27 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
 import org.jetbrains.skiko.MainUIDispatcher
 
-class BundleHolder {
+interface IBundleHolder {
+    fun obtainBundle(uuid: String): Bundle
+    fun obtainBundleNullable(uuid: String): Bundle?
+    fun clearBundle(uuid: String)
+}
+
+class BundleHolder :IBundleHolder{
     /**
      * 存储SaveState的bundle
      */
     val bundleSaverMap: MutableMap<String, Bundle> = mutableMapOf()
 
-    fun obtainBundle(uuid: String): Bundle {
+    override fun obtainBundle(uuid: String): Bundle {
         return bundleSaverMap.getOrPut(uuid) { Bundle() }
     }
 
-    fun clearBundle(uuid: String) {
+    override fun obtainBundleNullable(uuid: String): Bundle? {
+        return bundleSaverMap[uuid]
+    }
+
+    override fun clearBundle(uuid: String) {
         bundleSaverMap.remove(uuid)
     }
 }
@@ -25,18 +35,10 @@ class BundleHolder {
 /**
  * 管理所有的activity
  */
-object ActivityManager {
+object ActivityManager : IBundleHolder by BundleHolder() {
     const val NAME = "ActivityManager"
     val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
     private val activityMap: MutableMap<String, Activity> = mutableMapOf()
-
-    /**
-     * 存储activity SaveState的bundle
-     */
-    val activitySavedBundle = BundleHolder()
-
-    fun obtainBundle(uuid: String) = activitySavedBundle.obtainBundle(uuid)
-    fun clearBundle(uuid: String) = activitySavedBundle.clearBundle(uuid)
 
     /**
      * 好吧，目前没有可实现的

@@ -101,7 +101,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         }
         ActivityManager.register(uuid, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-        onCreate(bundle)
+        onCreate(activityManager().obtainBundleNullable(uuid))
     }
 
     /**
