@@ -10,7 +10,7 @@ import androidx.core.bundle.Bundle
 import androidx.lifecycle.*
 import androidx.lifecycle.viewmodel.*
 import com.github.knightwood.example.components.SampleButton
-import com.github.knightwood.slf4j.kotlin.logger
+import com.github.knightwood.slf4j.kotlin.logFor
 import kotlin.random.Random
 import kotlin.reflect.KClass
 
@@ -41,7 +41,7 @@ class TestViewModel1(
 
 class VMTestActivity : ComponentActivity() {
     var tag = "VMTestActivity"
-    private val logger = logger(tag)
+    private val logger = logFor(tag)
 
     val vm1: TestViewModel1 by viewModels<TestViewModel1>(extrasProducer = {
         val extras = MutableCreationExtras()

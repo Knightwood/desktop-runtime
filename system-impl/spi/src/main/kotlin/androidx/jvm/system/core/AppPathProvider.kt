@@ -3,7 +3,7 @@ package androidx.jvm.system.core
 import androidx.jvm.system.utils.SystemProperty
 import androidx.jvm.system.utils.currentOsAndArch
 import com.github.knightwood.slf4j.kotlin.info
-import com.github.knightwood.slf4j.kotlin.logger
+import com.github.knightwood.slf4j.kotlin.kLogger
 import okio.Path
 import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
@@ -59,7 +59,7 @@ class AppPathProvider private constructor(
 ) : AppBasePathProvider by pathProviderImpl {
 
     override fun print() {
-        logger.info {
+        kLogger.info {
             val appPathProvider = this
             val userHome = appPathProvider.userHome
             val installPath = appPathProvider.installPath

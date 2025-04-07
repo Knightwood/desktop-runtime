@@ -9,7 +9,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.core.bundle.Bundle
 import androidx.jvm.system.core.AppPathProvider
-import com.github.knightwood.slf4j.kotlin.logger
+import com.github.knightwood.slf4j.kotlin.logFor
 import me.i18n.resources.app_name
 import org.jetbrains.compose.resources.stringResource
 import kotlin.random.Random
@@ -18,7 +18,7 @@ import kotlin.random.Random
 open class TestActivity : Activity() {
     val randoms = Random.nextInt(0, 11)
     var tag = "Activity$randoms"
-    private val logger = logger(tag)
+    private val logger = logFor(tag)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

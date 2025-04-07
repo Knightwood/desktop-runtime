@@ -43,7 +43,7 @@ import kotlin.reflect.KClass
  * open class TestActivity : ComponentActivity() {
  *     val randoms = Random.nextInt(0, 11)
  *     var tag = "Activity$randoms"
- *     private val logger = logger(tag)
+ *     private val logger = logFor(tag)
  *
  *     val one = object : CreationExtras.Key<Int> {}
  *     val vm: TestViewModel by viewModels<TestViewModel>(extrasProducer = {

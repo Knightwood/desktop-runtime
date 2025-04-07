@@ -58,6 +58,9 @@ open class Fragment() : IScreenComponent() {
         }
     }
 
+    /**
+     * 在[onCreateView]函数状调用此方法，生成视图
+     */
     open fun ComposeView(content: @Composable () -> Unit): ComponentViewHolder {
         return ComponentViewHolder {
             ProvideAndroidCompositionLocals(

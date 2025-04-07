@@ -16,7 +16,7 @@ import androidx.jvm.system.ui.tray.FixedTrayMenuItem
 import androidx.jvm.system.ui.tray.TraySeparator
 import com.github.knightwood.example.acts.SplashActivity
 import com.github.knightwood.slf4j.kotlin.info
-import com.github.knightwood.slf4j.kotlin.logger
+import com.github.knightwood.slf4j.kotlin.logFor
 
 //fun main() = startApplication(
 //    SplashActivity::class.java,
@@ -44,7 +44,7 @@ fun main() = startApplication<SplashActivity, MainApplication>(
 )
 
 
-private val log = logger("main")
+private val log = logFor("main")
 
 private var hide = mutableStateOf(false)
 

@@ -4,7 +4,8 @@ import androidx.compose.desktop.runtime.activity.BundleHolder
 import androidx.compose.desktop.runtime.activity.IBundleHolder
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import com.github.knightwood.slf4j.kotlin.logger
+import com.github.knightwood.slf4j.kotlin.kLogger
+import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.*
 import java.util.Collections
 
@@ -23,7 +24,7 @@ inline fun <reified T : Fragment> IScreenComponentManager.register(key: String? 
 }
 
 class FragmentManager() : IScreenComponentManager {
-    val logger = logger("组件管理")
+    val logger = logFor("组件管理")
     private lateinit var lifecycleOwner: LifecycleOwner
     private val stackManager: ScreenComponentStackManager = ScreenComponentStackManager()
     private val bundleHolder: IBundleHolder by lazy { BundleHolder() }
@@ -79,7 +80,7 @@ class ScreenComponentStackManager {
 
     fun <T : Fragment> register(component: Fragment) {
         if (map.containsKey(component.uuid)) {
-            logger.info("${component.uuid}  已存在")
+            kLogger.info("${component.uuid}  已存在")
             return
         }
         map[component.uuid] = component

@@ -11,7 +11,7 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import com.github.knightwood.slf4j.kotlin.logger
+import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.util.*
@@ -39,7 +39,9 @@ interface ScreenComponentCallback {
  */
 abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, LifecycleEventObserver,
     HasDefaultViewModelProviderFactory, SavedStateRegistryOwner, ScreenComponentCallback {
-
+    /**
+     * uuid用于恢复bundle数据
+     */
     var uuid: String = UUID.randomUUID().toString()
     lateinit var bundleHolder: IBundleHolder
 

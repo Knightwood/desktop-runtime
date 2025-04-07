@@ -15,7 +15,7 @@ import androidx.lifecycle.Lifecycle.Event.ON_START
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.error
 import com.github.knightwood.slf4j.kotlin.info
-import com.github.knightwood.slf4j.kotlin.logger
+import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import org.jetbrains.skiko.MainUIDispatcher
@@ -72,12 +72,12 @@ open class Application : ContextWrapper(), LifecycleOwner {
             }
         }
         if (async) scope.launch { f.invoke() } else f.invoke()
-        logger.info { "Application onCreate" }
+        kLogger.info { "Application onCreate" }
     }
 
     @CallSuper
     open fun onDestroy() {
-        logger.info { "Application onDestroy" }
+        kLogger.info { "Application onDestroy" }
     }
     //</editor-fold>
 
@@ -99,7 +99,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
                 ServiceHolder.runningState.collect {
                     when (it) {
                         is Stop -> {
-                            logger.info("exit...")
+                            kLogger.info("exit...")
                             release()
                         }
 
@@ -136,7 +136,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
                 lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
                 lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
             } catch (e: Exception) {
-                logger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
+                kLogger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
             }
             onDestroy()
             activityManager().release()

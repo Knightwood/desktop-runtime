@@ -11,7 +11,7 @@ import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.DialogWindowScope
 import androidx.compose.ui.window.rememberDialogState
 import androidx.lifecycle.Lifecycle
-import com.github.knightwood.slf4j.kotlin.logger
+import com.github.knightwood.slf4j.kotlin.kLogger
 
 
 /**
@@ -84,7 +84,7 @@ abstract class DialogFragment : Fragment() {
     override fun show() {
         super.show()
         if (released.value) {
-            logger.error("dialog component is released,cannot show. uuid: $uuid")
+            kLogger.error("dialog component is released,cannot show. uuid: $uuid")
         }
     }
 
