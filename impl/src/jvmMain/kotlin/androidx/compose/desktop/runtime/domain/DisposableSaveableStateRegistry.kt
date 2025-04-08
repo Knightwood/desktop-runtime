@@ -13,12 +13,31 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.savedState
 import java.io.Serializable
 
 /**
  * 功能类似android中调用setContent时，其内部提供LocalSaveableStateRegistry。
+ *
+ * * compose 1.8.0-alpha04之前：数据存储恢复使用的是Bundle类
+ * * compose 1.8.0-alpha04之后：数据存储恢复使用的是SavedState类，与之前的bundle类相似，都是内部持有map实现功能，但是限制更少，使用更方便。
+ *
+ * 需要注意的是，迁移到SavedState类并没有实现SaveState存储和恢复api，这一部分仍需要我们自己实现。
+ *
+ * 需要引入:
+ * ```
+ * "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-savedstate:2.9.0-alpha05"
+ * "org.jetbrains.androidx.savedstate:savedstate:1.3.0-alpha05"
+ *```
+ *
+ *如果你想用bundle类，需要额外引入
+ * ```
+ * "org.jetbrains.androidx.core:core-bundle:"1.1.0-alpha03"
+ *
+ * ```
  */
 @Composable
 fun ProvideAndroidCompositionLocals(
@@ -71,12 +90,12 @@ internal fun DisposableSaveableStateRegistry(
     val androidxRegistry = savedStateRegistryOwner.savedStateRegistry
     //使用key得到之前保存的数据
     val bundle = androidxRegistry.consumeRestoredStateForKey(key)
-    val restored: Map<String, List<Any?>>? = bundle?.toMap()
+    val restored: Map<String, List<Any?>>? = bundle?.toMap() as Map<String, List<Any?>>?
 
     val saveableStateRegistry = SaveableStateRegistry(restoredValues = restored, canBeSaved = ::canBeSavedToBundle)
     val registered = try {
         androidxRegistry.registerSavedStateProvider(key) {
-            saveableStateRegistry.performSave().toBundle()
+            saveableStateRegistry.performSave().toSaveState()
         }
         true
     } catch (ignore: IllegalArgumentException) {
@@ -183,10 +202,25 @@ private fun Map<String, List<Any?>>.toBundle(): Bundle {
     return bundle
 }
 
+private fun Map<String, List<Any?>>.toSaveState(): SavedState {
+    return savedState(this)
+}
 
+//<editor-fold desc="反射SavedState">
+/**
+ * 反射SavedState，获取map
+ */
+fun SavedState.toMap(): Map<String, Any?> {
+    val field = this.javaClass.getDeclaredField("map")
+    field.isAccessible = true
+    val map = field.get(this) as MutableMap<String, Any?>
+    return map
+}
+
+//</editor-fold>
 //<editor-fold desc="反射Bundle">
 /**
- * 反射Bundle中的bundleData
+ * 反射Bundle中的bundleData，将数据放入Bundle
  */
 fun Bundle.setObjectFixed(key: String, value: Any?) {
     val map = this.fix()
@@ -194,13 +228,16 @@ fun Bundle.setObjectFixed(key: String, value: Any?) {
 }
 
 /**
- * 反射Bundle中的bundleData
+ * 反射Bundle中的bundleData，获取map中存储的数据
  */
 fun Bundle.getData(key: String): Any? {
     val map = this.fix()
     return map.get(key)
 }
 
+/**
+ * 反射Bundle，获取bundle中存储数据的map
+ */
 fun Bundle.fix(): MutableMap<String, Any?> {
     val field = this.javaClass.getDeclaredField("bundleData")
     field.isAccessible = true

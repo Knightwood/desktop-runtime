@@ -1,6 +1,7 @@
 package androidx.compose.desktop.runtime.activity
 
-import androidx.core.bundle.Bundle
+import androidx.savedstate.SavedState
+import androidx.savedstate.savedState
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -8,8 +9,8 @@ import kotlinx.coroutines.plus
 import org.jetbrains.skiko.MainUIDispatcher
 
 interface IBundleHolder {
-    fun obtainBundle(uuid: String): Bundle
-    fun obtainBundleNullable(uuid: String): Bundle?
+    fun obtainBundle(uuid: String): SavedState
+    fun obtainBundleNullable(uuid: String): SavedState?
     fun clearBundle(uuid: String)
     fun clear()
 }
@@ -18,13 +19,13 @@ class BundleHolder :IBundleHolder{
     /**
      * 存储SaveState的bundle
      */
-    val bundleSaverMap: MutableMap<String, Bundle> = mutableMapOf()
+    val bundleSaverMap: MutableMap<String, SavedState> = mutableMapOf()
 
-    override fun obtainBundle(uuid: String): Bundle {
-        return bundleSaverMap.getOrPut(uuid) { Bundle() }
+    override fun obtainBundle(uuid: String): SavedState {
+        return bundleSaverMap.getOrPut(uuid) { savedState() }
     }
 
-    override fun obtainBundleNullable(uuid: String): Bundle? {
+    override fun obtainBundleNullable(uuid: String): SavedState? {
         return bundleSaverMap[uuid]
     }
 

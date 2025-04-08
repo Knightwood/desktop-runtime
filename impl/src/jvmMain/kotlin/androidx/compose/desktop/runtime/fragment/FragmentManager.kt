@@ -39,7 +39,7 @@ class FragmentManager() : IScreenComponentManager {
             fragment.uuid = key
         }
         stackManager.register<T>(fragment)
-        fragment.attach(lifecycleOwner.lifecycle, bundleHolder)
+        fragment.attach(lifecycleOwner, bundleHolder)
         lifecycleOwner.lifecycleScope.launch {
             fragment.released.collect {
                 if (it) {

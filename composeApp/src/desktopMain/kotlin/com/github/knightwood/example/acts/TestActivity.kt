@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.core.bundle.Bundle
 import androidx.jvm.system.core.AppPathProvider
+import androidx.savedstate.SavedState
 import com.github.knightwood.slf4j.kotlin.logFor
 import me.i18n.resources.app_name
 import org.jetbrains.compose.resources.stringResource
@@ -19,14 +19,14 @@ open class TestActivity : Activity() {
     val randoms = Random.nextInt(0, 11)
     var tag = "Activity$randoms"
     private val logger = logFor(tag)
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
 
         setContent {
             ComposeView(onCloseRequest = { exitApp() }) {
                 MaterialTheme {
                     Column {
-                        Text(text = "rememberSaveable测试")
+                        Text(text = "rememberSavable测试")
                         Button(onClick = {
                             val intent = Intent()
                             //因为大多数时候我们不需要保存恢复数据，clearSaveState默认为true

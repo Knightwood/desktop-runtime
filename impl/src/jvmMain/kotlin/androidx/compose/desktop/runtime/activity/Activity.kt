@@ -13,6 +13,8 @@ import androidx.compose.desktop.runtime.context.ThemedContext
 import androidx.compose.desktop.runtime.window.DesktopWindow
 import androidx.compose.ui.window.*
 import androidx.core.bundle.Bundle
+import androidx.savedstate.SavedState
+import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -29,6 +31,14 @@ fun interface ActivityResult {
 }
 
 /**
+ * androidx lifecycle 2.9.0-alpha06
+ * Lifecycle.DESTROYED 状态是最终状态，现在，如果尝试将 Lifecycle 从该状态移至任何其他状态，都会导致 IllegalStateException。
+ *
+ * 当隐藏window，生命周期会走到[ON_PAUSE]
+ * 当window被移除（调用[finish]方法），window生命周期会走到[ON_DESTROY]，
+ * 我们本就实现了隐藏与现实方法，根本不需要activity在关闭windows后重新生成window来显示界面，重走生命周期，
+ * 而且当前生命走到[ON_DESTROY]时是无法设置其他生命周期状态的，因此，activity理应同步window生命周期
+ *
  * 如下是jb对于window的生命周期描述。
  *
  * | Swing listener callbacks     | Lifecycle event | Lifecycle state change |
@@ -63,7 +73,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     /**
      * uuid是activity的唯一标识，可以用于activity保存和回复状态，从[ActivityManager]获取实例等
      */
-    var uuid :String= UUID.randomUUID().toString()
+    var uuid: String = UUID.randomUUID().toString()
         private set
 
     /**
@@ -78,6 +88,9 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     val context get() = this
 
+    /**
+     * 仅作为一个调用[finish]方法的标志
+     */
     private var finished: Boolean = false
 
     /**
@@ -119,21 +132,19 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     }
 
     /**
-     * 观察window的生命周期，并进行部分同步
-     * 当window销毁时，activity的生命周期就走到destroy
+     * 观察window的生命周期，并进行部分同步 当window销毁时，activity的生命周期就走到destroy
      */
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-//        logger.info("window event: $event")
-        syncLife(event, finished)
+//        kLogger.info("window event: $event")
+        syncLife(event, true)
         when (event) {
             ON_RESUME -> onResume()
             ON_PAUSE -> onPause()
             ON_STOP -> onStop()
             ON_DESTROY -> {
+                source.lifecycle.removeObserver(this)
                 onSaveInstanceState(bundle)
-                if (finished) {
-                    onDestroy()
-                }
+                onDestroy()
             }
 
             ON_START -> onStart()
@@ -147,21 +158,19 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      * @param data 启动此Activity附带的数据
      */
     @CallSuper
-    open fun onCreate(savedInstanceState: Bundle?) {
+    open fun onCreate(savedInstanceState: SavedState?) {
         lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
     }
 
-    open fun onSaveInstanceState(outState: Bundle) {
-        val lifecycle = lifecycle
-        if (lifecycle is LifecycleRegistry) {
-            lifecycle.currentState = Lifecycle.State.CREATED
-        }
+    @CallSuper
+    open fun onSaveInstanceState(outState: SavedState) {
+
     }
 
     open fun onStart() {}
 
-   open fun setContent(content: @Composable ApplicationScope.() -> Unit) {
+    open fun setContent(content: @Composable ApplicationScope.() -> Unit) {
         if (!this::mWindow.isInitialized) {
             throw IllegalStateException("window is not initialized")
         }

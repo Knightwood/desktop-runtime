@@ -11,6 +11,7 @@ import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.DialogWindowScope
 import androidx.compose.ui.window.rememberDialogState
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.kLogger
 
 
@@ -91,7 +92,7 @@ abstract class DialogFragment : Fragment() {
     companion object {
         fun <T : DialogFragment> makeDialog(
             cls: Class<T>,
-            lifecycle: Lifecycle,
+            lifecycle: LifecycleOwner,
             iBundleHolder: IBundleHolder = BundleHolder()
         ): T {
             val fragment = cls.getDeclaredConstructor().newInstance()

@@ -17,6 +17,7 @@ import androidx.lifecycle.Lifecycle.Event.ON_CREATE
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
+import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
@@ -143,7 +144,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
         enableSavedStateHandles()
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: SavedState?) {
         savedStateRegistryController.performRestore(bundle)
         super.onCreate(savedInstanceState)
     }
@@ -161,7 +162,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
         }
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
+    override fun onSaveInstanceState(outState: SavedState) {
         super.onSaveInstanceState(outState)
         savedStateRegistryController.performSave(outState)
     }

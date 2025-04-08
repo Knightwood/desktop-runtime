@@ -10,11 +10,11 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.desktop.runtime.activity.Activity
-import androidx.core.bundle.Bundle
+import androidx.savedstate.SavedState
 import kotlinx.coroutines.delay
 
 class SplashActivity : Activity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
         setContent {
             LaunchedEffect(Unit) {

@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
-import androidx.core.bundle.Bundle
 import androidx.lifecycle.*
 import androidx.lifecycle.viewmodel.*
+import androidx.savedstate.SavedState
 import com.github.knightwood.example.components.SampleButton
 import com.github.knightwood.slf4j.kotlin.logFor
 import kotlin.random.Random
@@ -54,7 +54,7 @@ class VMTestActivity : ComponentActivity() {
     val vm2 by viewModels<TestViewModel2>()
 
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
         setContent {
             //由于状态存储发生在onDestroy阶段，closeActivity为true时才会触发onDestroy

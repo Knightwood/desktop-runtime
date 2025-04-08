@@ -2,16 +2,18 @@ package androidx.compose.desktop.runtime.fragment
 
 import androidx.annotation.CallSuper
 import androidx.compose.desktop.runtime.activity.IBundleHolder
+import androidx.compose.desktop.runtime.domain.WeakReference
 import androidx.compose.desktop.runtime.viewmodel.createVM
-import androidx.core.bundle.Bundle
 import androidx.lifecycle.*
 import androidx.lifecycle.Lifecycle.Event.*
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
+import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import com.github.knightwood.slf4j.kotlin.logFor
+import com.github.knightwood.slf4j.kotlin.info
+import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.util.*
@@ -52,6 +54,8 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
 
     // 组件是否已经释放
     val released: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    private lateinit var parentLifecycle: WeakReference<Lifecycle>
 
     @Suppress("LeakingThis")
     private var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this)
@@ -97,6 +101,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
      */
     fun prepare(parentLifecycle: Lifecycle, bundleHolder: IBundleHolder) {
         this.bundleHolder = bundleHolder
+        this.parentLifecycle = WeakReference(parentLifecycle)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
         onCreate(bundleHolder.obtainBundleNullable(uuid))
         parentLifecycle.addObserver(this)
@@ -106,12 +111,10 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
      * observe parent lifecycle
      */
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-        when (event) {
-            ON_DESTROY -> {
-                onDestroy()
-            }
-
-            else -> {}
+        kLogger.info { "parent lifecycle changed: $event" }
+        if (event == ON_DESTROY) {
+            endLife()
+            onDestroy()
         }
         syncLife(event)
         onStateChanged(event)
@@ -126,7 +129,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     }
 
     @CallSuper
-    open fun onCreate(savedInstanceState: Bundle?) {
+    open fun onCreate(savedInstanceState: SavedState?) {
 //        logger.info("恢复状态，uuid:$uuid")
         savedStateRegistryController.performRestore(savedInstanceState)
         lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
@@ -134,7 +137,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     }
 
     @CallSuper
-    fun onSaveInstanceState(outState: Bundle) {
+    fun onSaveInstanceState(outState: SavedState) {
         savedStateRegistryController.performSave(outState)
 //        logger.info("保存状态，uuid:$uuid")
     }
@@ -164,6 +167,13 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     fun release() {
         onDestroy()//必须要在同步生命周期前调用，否则lifecycleScope会结束，导致无法正常释放
         syncLife(ON_DESTROY)
+        endLife()
+    }
+
+    private fun endLife() {
+        //移除对于parent的生命周期监听
+        this.parentLifecycle.get()?.removeObserver(this)
+        this.parentLifecycle.clear()
     }
 
     override val defaultViewModelProviderFactory: ViewModelProvider.Factory by lazy {

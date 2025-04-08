@@ -15,13 +15,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.core.bundle.Bundle
+import androidx.savedstate.SavedState
 import com.github.knightwood.example.components.SampleButton
 import kotlin.random.Random
 
 class TestFragmentActivity : FragmentActivity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
         register<Fragment1>("123")
         register<Fragment1>("124")
@@ -88,7 +88,7 @@ class TestFragmentActivity : FragmentActivity() {
                             mutableStateOf(
                                 DialogFragment.makeDialog(
                                     TestDialog::class.java,
-                                    this@TestFragmentActivity.lifecycle
+                                    this@TestFragmentActivity
                                 )
                             )
                         }

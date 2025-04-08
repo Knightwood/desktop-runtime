@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.*
+import com.github.knightwood.slf4j.kotlin.kLogger
 
 /**
  * 用法：
@@ -35,8 +36,8 @@ open class Fragment() : IScreenComponent() {
     private var mComposeView: ComponentViewHolder? = null
     override fun onStateChanged(event: Lifecycle.Event) {}
 
-    fun attach(parentLifecycle: Lifecycle, bundleHolder: IBundleHolder) {
-        prepare(parentLifecycle, bundleHolder)//先初始化，然后监听父级的生命周期进行同步
+    fun attach(parentLifecycle: LifecycleOwner, bundleHolder: IBundleHolder) {
+        prepare(parentLifecycle.lifecycle, bundleHolder)//先初始化，然后监听父级的生命周期进行同步
     }
 
     /**

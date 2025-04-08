@@ -18,6 +18,8 @@ import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.jetbrains.skiko.MainUIDispatcher
 import kotlin.system.exitProcess
 
@@ -26,6 +28,7 @@ import kotlin.system.exitProcess
  */
 open class Application : ContextWrapper(), LifecycleOwner {
     private var aware: Array<out Aware> = emptyArray()
+    private val mutex = Mutex()
 
     /**
      * 此协程最终会随着进程结束而结束，不必担心生命周期
@@ -51,9 +54,11 @@ open class Application : ContextWrapper(), LifecycleOwner {
     init {
         mBase = ContextImpl()
         scope.launch {
-            withContext(MainUIDispatcher) {
-                // 初始化时设置生命周期状态
-                lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
+            mutex.withLock {
+                withContext(MainUIDispatcher) {
+                    // 初始化时设置生命周期状态
+                    lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
+                }
             }
         }
     }
@@ -61,9 +66,11 @@ open class Application : ContextWrapper(), LifecycleOwner {
     @CallSuper
     open fun onCreate() {
         scope.launch {
-            withContext(MainUIDispatcher) {
-                lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
-                lifecycleRegistry.currentState = Lifecycle.State.CREATED
+            mutex.withLock {
+                withContext(MainUIDispatcher) {
+                    lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
+                    lifecycleRegistry.currentState = Lifecycle.State.CREATED
+                }
             }
         }
         val f: () -> Unit = {
