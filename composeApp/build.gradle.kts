@@ -91,6 +91,7 @@ compose.desktop {
 //        jvmArgs -= listOf("-Dfile.encoding=UTF-8")
 
         mainClass = "com.github.knightwood.example.MainKt"
+//        javaHome = System.getenv("JAVA_HOME")
         buildTypes.release {
             proguard {
                 version.set("7.5.0")
@@ -100,6 +101,7 @@ compose.desktop {
             }
         }
         nativeDistributions {
+            modules("java.instrument", "jdk.unsupported", "java.naming")
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "com.github.knightwood.example"
             packageVersion = "1.0.0"

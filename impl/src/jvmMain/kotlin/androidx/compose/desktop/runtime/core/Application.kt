@@ -53,25 +53,13 @@ open class Application : ContextWrapper(), LifecycleOwner {
 
     init {
         mBase = ContextImpl()
-        scope.launch {
-            mutex.withLock {
-                withContext(MainUIDispatcher) {
-                    // 初始化时设置生命周期状态
-                    lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-                }
-            }
-        }
     }
 
     @CallSuper
     open fun onCreate() {
-        scope.launch {
-            mutex.withLock {
-                withContext(MainUIDispatcher) {
-                    lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
-                    lifecycleRegistry.currentState = Lifecycle.State.CREATED
-                }
-            }
+        runOnUIThread(mutex) {
+            lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
+            lifecycleRegistry.currentState = Lifecycle.State.CREATED
         }
         val f: () -> Unit = {
             for (a in aware) {
@@ -214,3 +202,24 @@ fun startApplication(
     }
 }
 //</editor-fold>
+/**
+ * 利用[Application.scope]在ui线程运行代码块
+ * @param lock 如果不为null，则运行代码块时，会先获取锁，然后运行代码块，最后释放锁
+ * @param block 需要运行在ui线程的代码块
+ */
+fun runOnUIThread(
+    lock: Mutex? = null,
+    block: suspend CoroutineScope.() -> Unit
+) {
+    applicationInternal.scope.launch {
+        withContext(MainUIDispatcher) {
+            if (lock != null) {
+                lock.withLock {
+                    block()
+                }
+            } else {
+                block()
+            }
+        }
+    }
+}
