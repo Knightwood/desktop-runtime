@@ -47,6 +47,9 @@ implementation("com.github.knightwood:jvm-system-win:1.0.0")
 ```
 
 ###  使用
+#### 问题
+1. 在某些系统中无法显示菜单
+调用 `System.setProperty("skiko.renderApi", "OPENGL")`设置图形后端为opengl或许会解决问题
 
 #### 基本使用方式
 创建一个Application类和MainActivity类，并使用startApplication函数启动项目。
