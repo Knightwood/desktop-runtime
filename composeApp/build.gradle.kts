@@ -101,6 +101,7 @@ compose.desktop {
         }
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            modules("java.instrument", "jdk.unsupported", "java.naming")
             packageName = "com.github.knightwood.example"
             packageVersion = "1.0.0"
         }
