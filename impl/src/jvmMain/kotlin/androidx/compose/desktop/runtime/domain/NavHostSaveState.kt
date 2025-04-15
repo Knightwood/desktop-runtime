@@ -1,28 +1,91 @@
 package androidx.compose.desktop.runtime.domain
 
+import androidx.compose.desktop.runtime.context.noLocalProvidedFor
+import androidx.compose.desktop.runtime.utils.CompositionLocalProviderNullable
+import androidx.compose.desktop.runtime.utils.providesNullable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.*
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.savedstate.SavedStateRegistryOwner
 import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.random.Random
 
-
+val LocalSavedStateRegistryOwner = staticCompositionLocalOf<SavedStateRegistryOwner> {
+    noLocalProvidedFor("LocalSavedStateRegistryOwner")
+}
 
 
 /**
- * 功能类似于NavHost中提供的LocalSaveableStateRegistry
+ * 功能类似于NavHost，可以提供状态保存和恢复功能，以正常使用rememberSavable
+ * 需要注意，每个使用此方法的compose函数，都需要一个独立的ViewModelStoreOwner，他们不能重复。
+ * 就像NavHost中，每个导航回退节点对应一个页面，每个导航回退节点都是一个ViewModelStoreOwner。
+ *
+ * ```
+ *class ViewModelStoreOwnerImpl : ViewModelStoreOwner {
+ *     override val viewModelStore: ViewModelStore
+ *         get() = TODO("Not yet implemented")
+ * }
+ *
+ * class Activity1 : Activity() {
+ *     val owner1 = ViewModelStoreOwnerImpl()
+ *     val owner2 = ViewModelStoreOwnerImpl()
+ *     override fun onCreate(savedInstanceState: SavedState?) {
+ *         super.onCreate(savedInstanceState)
+ *         setContent {
+ *             Screen()
+ *         }
+ *     }
+ *
+ *     //不可以共用Activity这个ViewModelStoreOwner，
+ *     //两个compose页面如果使用同一个ViewModelStoreOwner，
+ *     //会导致无法正常恢复数据。
+ *     @Composable
+ *     fun Screen() {
+ *         Column {
+ *             ScreenA(owner1) {}
+ *             HorizontalDivider()
+ *             ScreenA(owner2) {}
+ *         }
+ *     }
+ * }
+ *
+ *
+ * @Composable
+ * fun ScreenA(owner: ViewModelStoreOwnerImpl, content: @Composable () -> Unit) {
+ *     NavHostSaveStateProvider(owner) {
+ *         content()
+ *     }
+ * }
+ * ```
+ *
+ * @param viewModelStoreOwner 必须传，页面保存恢复状态，就指望着viewmodel呢。
+ * @param lifecycleOwner 可选
+ * @param savedStateRegistryOwner 可选
+ * @param content
  */
 @Composable
 fun NavHostSaveStateProvider(
+    viewModelStoreOwner: ViewModelStoreOwner,
+    lifecycleOwner: LifecycleOwner? = null,
+    savedStateRegistryOwner: SavedStateRegistryOwner? = null,
     content: @Composable () -> Unit
 ) {
     val saveableStateHolder = rememberSaveableStateHolder()
-    saveableStateHolder.SaveableStateProvider(content)
+    CompositionLocalProviderNullable(
+        LocalViewModelStoreOwner provides viewModelStoreOwner,
+        LocalLifecycleOwner providesNullable lifecycleOwner,
+        LocalSavedStateRegistryOwner providesNullable savedStateRegistryOwner
+    ) {
+        saveableStateHolder.SaveableStateProvider(content)
+    }
 }
 
 @Suppress("ACTUAL_WITHOUT_EXPECT") // https://youtrack.jetbrains.com/issue/KT-37316
@@ -78,6 +141,14 @@ private fun randomUUID(): String {
 
 fun randomId(): String = randomUUID()
 
+/**
+ * 在NavHost中 一个回退栈节点对应一个导航页面，回退栈节点就是ViewmodelStoreOwner，
+ * 自然一个导航页面对应一个BackStackEntryIdViewModel，对于这个页面永远不会有第二个实例。
+ * 对于两个导航页面，获取的viewmodel也永远不会重复和混淆。
+ * 每个页面对应的唯一的viewModel跟着回退栈节点同生共死，自然id可以是个随机数。
+ *
+ * 持有SaveableStateHolder和用于页面数据保存恢复的key
+ */
 internal class BackStackEntryIdViewModel(handle: SavedStateHandle) : ViewModel() {
 
     private val IdKey = "SaveableStateHolder_BackStackEntryKey"

@@ -4,7 +4,7 @@ import java.util.UUID
 
 
 data class Intent(
-    val launchMode: LaunchMode = LaunchMode.STANDARD,
+    var launchMode: LaunchMode = LaunchMode.STANDARD,
     var data: Any? = null
 ) {
     /**

@@ -7,6 +7,7 @@ import androidx.compose.desktop.runtime.context.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.saveable.SaveableStateRegistry
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshots.SnapshotMutableState
 import androidx.core.bundle.Bundle
 import androidx.lifecycle.LifecycleOwner
@@ -88,12 +89,17 @@ internal fun DisposableSaveableStateRegistry(
 
     //获取从activity中的savedStateRegistry
     val androidxRegistry = savedStateRegistryOwner.savedStateRegistry
-    //使用key得到之前保存的数据
+    //使用key得到之前保存的数据，用于activity onCreate时恢复数据，
     val bundle = androidxRegistry.consumeRestoredStateForKey(key)
     val restored: Map<String, List<Any?>>? = bundle?.toMap() as Map<String, List<Any?>>?
 
+    // 最终返回此实例，并使用CompositionLocalProvider提供此实例，如此：
+    // compose会将数据保存进去，也会从这里读取数据用于恢复。
+    //  activity保存数据时会回调此实例提供的SavedStateProvider
+    // compose生成界面时，触发了函数内部rememberSavable，他只执行一次，用于数据恢复
     val saveableStateRegistry = SaveableStateRegistry(restoredValues = restored, canBeSaved = ::canBeSavedToBundle)
     val registered = try {
+        //注册SavedStateProvider，当activity触发保存数据时，会调用此处注册的SavedStateProvider，得到界面需要保存的数据
         androidxRegistry.registerSavedStateProvider(key) {
             saveableStateRegistry.performSave().toSaveState()
         }
