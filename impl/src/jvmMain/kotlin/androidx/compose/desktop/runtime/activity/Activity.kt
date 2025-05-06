@@ -12,9 +12,7 @@ import androidx.compose.desktop.runtime.context.IContext
 import androidx.compose.desktop.runtime.context.ThemedContext
 import androidx.compose.desktop.runtime.window.DesktopWindow
 import androidx.compose.ui.window.*
-import androidx.core.bundle.Bundle
 import androidx.savedstate.SavedState
-import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -31,8 +29,8 @@ fun interface ActivityResult {
 }
 
 /**
- * androidx lifecycle 2.9.0-alpha06
- * Lifecycle.DESTROYED 状态是最终状态，现在，如果尝试将 Lifecycle 从该状态移至任何其他状态，都会导致 IllegalStateException。
+ * androidx lifecycle 2.9.0-alpha06 Lifecycle.DESTROYED 状态是最终状态，现在，如果尝试将
+ * Lifecycle 从该状态移至任何其他状态，都会导致 IllegalStateException。
  *
  * 当隐藏window，生命周期会走到[ON_PAUSE]
  * 当window被移除（调用[finish]方法），window生命周期会走到[ON_DESTROY]，
@@ -62,7 +60,7 @@ fun interface ActivityResult {
  * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver {
-    lateinit var mWindow: DesktopWindow
+    lateinit var decorView: DesktopWindow
     lateinit var intent: Intent
 
     @Suppress("LeakingThis")
@@ -72,9 +70,11 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 
     /**
      * uuid是activity的唯一标识，可以用于activity保存和回复状态，从[ActivityManager]获取实例等
+     *
+     * 如果启动模式为单例，又没指定uuid，则使用目标activity class的canonicalName
      */
     var uuid: String = UUID.randomUUID().toString()
-        private set
+        internal set
 
     /**
      * 用于保存和恢复activity的状态
@@ -93,6 +93,12 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     private var finished: Boolean = false
 
+    var isHidden: Boolean
+        get() = decorView.isHidden.value
+        private set(value) {
+            decorView.isHidden.value = value
+        }
+
     /**
      * 1. activity将自己注册进[ActivityManager]
      * 2. 开始自己的生命周期
@@ -109,8 +115,8 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
             this.uuid = it
         }
         this.result = block
-        if (!this::mWindow.isInitialized) {
-            mWindow = DesktopWindow(this, windowManager(), intent.multiApplication)
+        if (!this::decorView.isInitialized) {
+            decorView = DesktopWindow(this, windowManager(), intent.multiApplication)
         }
         ActivityManager.register(uuid, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
@@ -171,13 +177,13 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     open fun onStart() {}
 
     open fun setContent(content: @Composable ApplicationScope.() -> Unit) {
-        if (!this::mWindow.isInitialized) {
+        if (!this::decorView.isInitialized) {
             throw IllegalStateException("window is not initialized")
         }
-        if (this.mWindow.contentShell != null) {
+        if (this.decorView.contentShell != null) {
             throw IllegalStateException("window content is not null, setContentView can only call once time")
         }
-        mWindow(content)
+        decorView show content
 
     }
 
@@ -203,44 +209,35 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     open fun onStop() {
     }
 
+    /**
+     * 从ActivityManager中移除自己
+     */
     @CallSuper
     open fun onDestroy() {
+        finished = true
+        ActivityManager.remove(uuid)
+        decorView.release()
     }
 
     /**
-     * 1. 从ActivityManager中移出自己
-     * 2. 从windowManager移出window，调用[onDestroy]方法
-     * 3. 进入[ON_DESTROY]状态，并调用[onDestroy]方法
+     * 从windowManager移除window，window会进入onDispose状态，然后，window的生命周期走到destroy状态，
+     * activity监听window生命周期，于是，activity也进入[ON_DESTROY]状态，并调用[onDestroy]方法
      */
     @CallSuper
     open fun finish() {
-        finished = true
-        if (intent.multiApplication) { // 多application模式，会结束整个应用进程
-            ActivityManager.remove(uuid)
-            mWindow.release()//多实例模式下，进行到这一步时，应用的生命就结束了
-        } else {// 单application模式，关闭窗口
-            ActivityManager.remove(uuid)
-            mWindow.release()
-        }
+        decorView.release()
     }
 
-    /**
-     * [Intent.multiApplication]为true，不支持[hide]/[show]
-     */
     @CallSuper
     open fun hide() {
-        lifecycleScope.launch {
-            mWindow.isHidden.value = true
-        }
+        isHidden = true
     }
 
-    /**
-     * [Intent.multiApplication]为true，不支持[hide]/[show]
-     */
     open fun show() {
-        lifecycleScope.launch {
-            mWindow.isHidden.value = (false)
+        if (lifecycle.currentState == Lifecycle.State.DESTROYED) {
+            throw IllegalStateException("activity is destroyed, cannot show")
         }
+        isHidden = false
     }
 
     /**
@@ -289,7 +286,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         Window(
             onCloseRequest = onCloseRequest,
             state = state,
-            visible = !mWindow.isHidden.value,
+            visible = !decorView.isHidden.value,
             title = title,
             icon = icon,
             undecorated = undecorated,
@@ -304,6 +301,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
                 val lc: LifecycleOwner = LocalLifecycleOwner.current
                 remember {
                     lc.lifecycle.addObserver(this@Activity)
+                    decorView.composeWindow = this.window
                 }
                 content()
             }

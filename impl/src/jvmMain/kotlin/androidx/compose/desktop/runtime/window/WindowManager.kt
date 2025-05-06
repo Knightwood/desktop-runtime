@@ -1,15 +1,31 @@
 package androidx.compose.desktop.runtime.window
 
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.window.*
-import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.jetbrains.skiko.MainUIDispatcher
+
+typealias ApplicationContent = @Composable ApplicationScope.() -> Unit
+
+/**
+ * 用于让用户可以手动操控applicationScope，以及内容显示 用法：实现接口，并手动调用接口方法中的函数参数
+ *
+ * ```
+ * object:ApplicationContentWrapper { scope, windows ->
+ *         // scope：applicationScope，windows：所有window列表
+ *         scope.windows()
+ * }
+ * ```
+ */
+fun interface ApplicationContentWrapper {
+    /**
+     * 显示应用程序内容
+     */
+    @Composable
+    fun show(scope: ApplicationScope, content: ApplicationContent)
+}
 
 /**
  * 有两种实现方式： 一种是每个window都在新的application块中调用，这个实现会比较简单。
@@ -19,8 +35,11 @@ class WindowManager private constructor() {
     val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
 
     private val windows: SnapshotStateList<DxWindow> = SnapshotStateList()
-    private val exit: MutableState<Boolean> = mutableStateOf(false)
-    var content: (@Composable ApplicationScope.() -> Unit)? = null
+
+    //    private val exit: MutableState<Boolean> = mutableStateOf(false)
+    var contentWrapper = ApplicationContentWrapper { scope, windows ->
+        scope.windows()
+    }
     private var b = MutableStateFlow<Boolean>(false)
 
     /**
@@ -32,7 +51,7 @@ class WindowManager private constructor() {
         //调用此函数，主线程就陷入阻塞了，所以需要注意。
         //exitProcessOnExit = false 避免主线程结束
         application(exitProcessOnExit = false) {
-            RunUI()
+            contentWrapper.show(this) { RunUI() }
             val state = b.collectAsState()
             if (state.value) {
                 Unit
@@ -42,7 +61,6 @@ class WindowManager private constructor() {
 
     @Composable
     fun ApplicationScope.RunUI() {
-        this@WindowManager.content?.invoke(this)
         windows.forEach { current ->
             key(current) {//避免无谓的重组
                 current.windowExec(this)
@@ -50,6 +68,9 @@ class WindowManager private constructor() {
         }
     }
 
+    /**
+     * 移除window，这会使window进入onDispose
+     */
     fun deAttachWindow(window: DxWindow) {
         window.isAttachedToApplication = false
         windows.remove(window)
@@ -58,7 +79,9 @@ class WindowManager private constructor() {
     /**
      * 添加一个要显示的window，如果添加之前没有window，则调用prepare方法。
      */
+    @Synchronized
     fun attachWindow(window: DxWindow) {
+        if (window.isAttachedToApplication) return
         window.isAttachedToApplication = true
         windows.add(window)
     }

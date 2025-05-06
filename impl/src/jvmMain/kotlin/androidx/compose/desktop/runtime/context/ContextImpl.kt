@@ -49,7 +49,10 @@ open class ContextImpl() : IContext() {
         block: ActivityResult?
     ) {
         if (intent.launchMode == LaunchMode.SINGLE_INSTANCE) {
-            val old = activityManager()[cls]
+            if (intent.uuid == null) {
+                intent.uuid = cls.canonicalName
+            }
+            val old = activityManager().get(intent.uuid)
             if (old != null) {
                 old.onReStart(intent)
                 return

@@ -9,6 +9,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.jvm.system.core.AppPathProvider
 import androidx.savedstate.SavedState
+import com.github.knightwood.example.main
+import com.github.knightwood.example.mainActivity
 import com.github.knightwood.slf4j.kotlin.logFor
 import me.i18n.resources.app_name
 import org.jetbrains.compose.resources.stringResource
@@ -21,9 +23,9 @@ open class TestActivity : Activity() {
     private val logger = logFor(tag)
     override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
-
+        mainActivity = this
         setContent {
-            ComposeView(onCloseRequest = { exitApp() }) {
+            ComposeView(onCloseRequest = { finish() }) {
                 MaterialTheme {
                     Column {
                         Text(text = "rememberSavable测试")
@@ -105,6 +107,7 @@ open class TestActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        mainActivity = null
         logger.info("onDestroy")
     }
 }

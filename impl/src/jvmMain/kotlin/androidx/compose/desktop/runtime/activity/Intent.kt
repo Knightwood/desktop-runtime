@@ -19,6 +19,8 @@ data class Intent(
      * 如果不为null，则启动的activity使用此uuid标记自己。
      * 如果不为null，下一次恢复数据时将使用此uuid读取保存的数据。
      *
+     * 如果启动模式为单例，又没指定uuid，则使用目标activity class的canonicalName
+     *
      * 可是，实现状态保存和恢复，在桌面端真的有意义吗？
      */
     var uuid: String? = null

@@ -11,9 +11,7 @@ import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.rememberWindowState
-import androidx.core.bundle.Bundle
 import androidx.lifecycle.*
-import androidx.lifecycle.Lifecycle.Event.ON_CREATE
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
@@ -21,7 +19,6 @@ import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 /**
@@ -149,18 +146,18 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
         super.onCreate(savedInstanceState)
     }
 
-    override fun show() {
-        if (mWindow.exit.value) {//已经退出，需要重建activity
-            ActivityManager.register(uuid, this)
-            lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
-            lifecycleRegistry.currentState = Lifecycle.State.CREATED
-            mWindow.active()
-        } else {
-            lifecycleScope.launch {
-                mWindow.isHidden.value = (false)
-            }
-        }
-    }
+//    override fun show() {
+//        if (mWindow.exit.value) {//已经退出，需要重建activity
+//            ActivityManager.register(uuid, this)
+//            lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
+//            lifecycleRegistry.currentState = Lifecycle.State.CREATED
+//            mWindow.active()
+//        } else {
+//            lifecycleScope.launch {
+//                mWindow.isHidden.value = (false)
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: SavedState) {
         super.onSaveInstanceState(outState)
@@ -240,7 +237,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
             Window(
                 onCloseRequest = if (closeActivity) ::finish else ::hide,
                 state = state,
-                visible = !mWindow.isHidden.value,
+                visible = !decorView.isHidden.value,
                 title = title,
                 icon = icon,
                 undecorated = undecorated,
@@ -255,6 +252,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
                     val lc: LifecycleOwner = LocalLifecycleOwner.current
                     remember {
                         lc.lifecycle.addObserver(this@ComponentActivity)
+                        decorView.composeWindow = this.window
                     }
                     content()
                 }

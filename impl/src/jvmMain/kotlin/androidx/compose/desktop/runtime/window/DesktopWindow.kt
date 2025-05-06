@@ -5,8 +5,10 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.window.application
 import androidx.compose.desktop.runtime.activity.Activity
+import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.ApplicationScope
-import kotlinx.coroutines.flow.MutableStateFlow
+import java.awt.AWTEvent
+import javax.swing.JFrame
 
 /**
  * @param activity
@@ -18,6 +20,8 @@ class DesktopWindow(
     private val windowManager: WindowManager,
     private val multiApplication: Boolean = false,
 ) : DxWindow() {
+
+
     /**
      * 是否隐藏Window
      */
@@ -34,7 +38,7 @@ class DesktopWindow(
      * 1. 如果设置为多application，则直接使用新的application运行ui界面
      * 2. 如果设置为单application，则将自己注册进[WindowManager]
      */
-    operator fun invoke(content: @Composable() (ApplicationScope.() -> Unit)) {
+    infix fun show(content: @Composable() (ApplicationScope.() -> Unit)) {
         this.contentShell = content
         if (multiApplication) {
             application {
@@ -50,7 +54,7 @@ class DesktopWindow(
 
     override fun active() {
         exit.value = false
-        this.contentShell?.let { this@DesktopWindow.invoke(it) }
+        this.contentShell?.let { this@DesktopWindow show it }
     }
 
     override fun release() {
