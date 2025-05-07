@@ -10,7 +10,8 @@ import androidx.lifecycle.Lifecycle.Event.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.desktop.runtime.context.IContext
 import androidx.compose.desktop.runtime.context.ThemedContext
-import androidx.compose.desktop.runtime.window.DesktopWindow
+import androidx.compose.desktop.runtime.window.DxWindowHolder
+import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.*
 import androidx.savedstate.SavedState
 import kotlinx.coroutines.*
@@ -60,8 +61,10 @@ fun interface ActivityResult {
  * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver {
-    lateinit var decorView: DesktopWindow
+    lateinit var windowHolder: DxWindowHolder
     lateinit var intent: Intent
+    val window: ComposeWindow
+        get() = windowHolder.composeWindow
 
     @Suppress("LeakingThis")
     protected var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this@Activity)
@@ -94,9 +97,9 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     private var finished: Boolean = false
 
     var isHidden: Boolean
-        get() = decorView.isHidden.value
+        get() = windowHolder.isHidden.value
         private set(value) {
-            decorView.isHidden.value = value
+            windowHolder.isHidden.value = value
         }
 
     /**
@@ -115,8 +118,8 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
             this.uuid = it
         }
         this.result = block
-        if (!this::decorView.isInitialized) {
-            decorView = DesktopWindow(this, windowManager(), intent.multiApplication)
+        if (!this::windowHolder.isInitialized) {
+            windowHolder = DxWindowHolder(this, windowManager(), intent.multiApplication)
         }
         ActivityManager.register(uuid, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
@@ -149,7 +152,6 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
             ON_STOP -> onStop()
             ON_DESTROY -> {
                 source.lifecycle.removeObserver(this)
-                onSaveInstanceState(bundle)
                 onDestroy()
             }
 
@@ -177,13 +179,13 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     open fun onStart() {}
 
     open fun setContent(content: @Composable ApplicationScope.() -> Unit) {
-        if (!this::decorView.isInitialized) {
+        if (!this::windowHolder.isInitialized) {
             throw IllegalStateException("window is not initialized")
         }
-        if (this.decorView.contentShell != null) {
+        if (this.windowHolder.rootView != null) {
             throw IllegalStateException("window content is not null, setContentView can only call once time")
         }
-        decorView show content
+        windowHolder show content
 
     }
 
@@ -214,9 +216,10 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     @CallSuper
     open fun onDestroy() {
+        onSaveInstanceState(bundle)
         finished = true
         ActivityManager.remove(uuid)
-        decorView.release()
+        windowHolder.release()
     }
 
     /**
@@ -225,7 +228,12 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     @CallSuper
     open fun finish() {
-        decorView.release()
+        if (windowHolder.isAttached()) {
+            window.dispose()
+        } else {
+            syncLife(ON_DESTROY, true)
+            onDestroy()
+        }
     }
 
     @CallSuper
@@ -286,7 +294,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         Window(
             onCloseRequest = onCloseRequest,
             state = state,
-            visible = !decorView.isHidden.value,
+            visible = !windowHolder.isHidden.value,
             title = title,
             icon = icon,
             undecorated = undecorated,
@@ -301,7 +309,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
                 val lc: LifecycleOwner = LocalLifecycleOwner.current
                 remember {
                     lc.lifecycle.addObserver(this@Activity)
-                    decorView.composeWindow = this.window
+                    windowHolder.composeWindow = this.window
                 }
                 content()
             }

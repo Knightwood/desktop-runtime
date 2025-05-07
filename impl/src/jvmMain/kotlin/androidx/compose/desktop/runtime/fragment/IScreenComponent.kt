@@ -19,12 +19,6 @@ import kotlinx.coroutines.launch
 import java.util.*
 import kotlin.reflect.KClass
 
-interface ScreenComponentCallback {
-    /**
-     * 子组件复写此方法可以知道当前生命周期
-     */
-    fun onStateChanged(event: Lifecycle.Event)
-}
 
 /**
  * 提供了生命周期、ViewModelStoreOwner、SavedStateRegistryOwner等基础组件
@@ -40,7 +34,7 @@ interface ScreenComponentCallback {
  * ```
  */
 abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, LifecycleEventObserver,
-    HasDefaultViewModelProviderFactory, SavedStateRegistryOwner, ScreenComponentCallback {
+    HasDefaultViewModelProviderFactory, SavedStateRegistryOwner {
     /**
      * uuid用于恢复bundle数据
      */
@@ -117,7 +111,6 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
             onDestroy()
         }
         syncLife(event)
-        onStateChanged(event)
     }
 
     /**

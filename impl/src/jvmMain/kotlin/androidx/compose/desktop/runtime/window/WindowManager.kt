@@ -34,7 +34,7 @@ fun interface ApplicationContentWrapper {
 class WindowManager private constructor() {
     val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
 
-    private val windows: SnapshotStateList<DxWindow> = SnapshotStateList()
+    private val windows: SnapshotStateList<DxWindowHolder> = SnapshotStateList()
 
     //    private val exit: MutableState<Boolean> = mutableStateOf(false)
     var contentWrapper = ApplicationContentWrapper { scope, windows ->
@@ -44,7 +44,7 @@ class WindowManager private constructor() {
 
     /**
      * 调用application方法，监听windows列表变化，并创建窗口内容。
-     * 我希望这里观察[windows]的变化，并调用[DxWindow]的[DxWindow.windowExec]方法以展示内容。
+     * 我希望这里观察[windows]的变化，并调用[DxWindowHolder]的[DxWindowHolder.windowExec]方法以展示内容。
      * 但同时希望尽可能减少重组，提升性能。
      */
     fun prepare() {
@@ -71,7 +71,7 @@ class WindowManager private constructor() {
     /**
      * 移除window，这会使window进入onDispose
      */
-    fun deAttachWindow(window: DxWindow) {
+    fun deAttachWindow(window: DxWindowHolder) {
         window.isAttachedToApplication = false
         windows.remove(window)
     }
@@ -80,10 +80,10 @@ class WindowManager private constructor() {
      * 添加一个要显示的window，如果添加之前没有window，则调用prepare方法。
      */
     @Synchronized
-    fun attachWindow(window: DxWindow) {
+    fun attachWindow(window: DxWindowHolder) {
         if (window.isAttachedToApplication) return
-        window.isAttachedToApplication = true
         windows.add(window)
+        window.isAttachedToApplication = true
     }
 
     fun release() {

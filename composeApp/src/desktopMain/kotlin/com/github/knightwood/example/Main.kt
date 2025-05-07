@@ -35,7 +35,7 @@ fun main() = startApplication<SplashActivity, MainApplication>(
             onLeftClick = {
                 mainActivity?.run {
                     show()
-                    decorView.composeWindow.setWindowSizeState(WindowSizeState.Restore)
+                    windowHolder.composeWindow.setWindowSizeState(WindowSizeState.Restore)
                 }
             },
             menu = remember {

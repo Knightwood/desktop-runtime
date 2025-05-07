@@ -1,25 +1,41 @@
 package androidx.compose.desktop.runtime.window
 
+import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.window.application
-import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.ApplicationScope
-import java.awt.AWTEvent
-import javax.swing.JFrame
+import androidx.compose.ui.window.application
+import java.util.*
 
 /**
  * @param activity
  * @param multiApplication true：
  *    window和application一一对应；false：在一个application中创建多个window。
  */
-class DesktopWindow(
+class DxWindowHolder(
     val activity: Activity,
     private val windowManager: WindowManager,
     private val multiApplication: Boolean = false,
-) : DxWindow() {
+    val uuid: UUID = UUID.randomUUID(),
+) {
+    lateinit var composeWindow: ComposeWindow
+        internal set
+
+    /**
+     * 是否被添加到了[WindowManager.windows]列表中
+     */
+    @Volatile
+    var isAttachedToApplication: Boolean = false
+
+    //setContentView传入的内容，需要显示的页面内容
+    var rootView: (@Composable ApplicationScope.() -> Unit)? = null
+
+    @Composable
+    fun windowExec(scope: ApplicationScope) {
+        rootView?.invoke(scope)
+    }
 
 
     /**
@@ -39,7 +55,7 @@ class DesktopWindow(
      * 2. 如果设置为单application，则将自己注册进[WindowManager]
      */
     infix fun show(content: @Composable() (ApplicationScope.() -> Unit)) {
-        this.contentShell = content
+        this.rootView = content
         if (multiApplication) {
             application {
                 if (exit.value) {
@@ -52,13 +68,23 @@ class DesktopWindow(
         }
     }
 
-    override fun active() {
+    fun active() {
         exit.value = false
-        this.contentShell?.let { this@DesktopWindow show it }
+        this.rootView?.let { this@DxWindowHolder show it }
     }
 
-    override fun release() {
+    fun release() {
         exit.value = true
         windowManager.deAttachWindow(this)
     }
+
+    fun isAttached(): Boolean {
+        return isAttachedToApplication && this::composeWindow.isInitialized
+    }
+
 }
+
+enum class WindowSizeState {
+    Max, Min, Restore
+}
+

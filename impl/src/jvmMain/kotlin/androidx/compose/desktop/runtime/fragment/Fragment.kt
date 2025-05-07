@@ -34,7 +34,6 @@ import com.github.knightwood.slf4j.kotlin.kLogger
 open class Fragment() : IScreenComponent() {
     val mVisibility = mutableStateOf(true)
     private var mComposeView: ComponentViewHolder? = null
-    override fun onStateChanged(event: Lifecycle.Event) {}
 
     fun attach(parentLifecycle: LifecycleOwner, bundleHolder: IBundleHolder) {
         prepare(parentLifecycle.lifecycle, bundleHolder)//先初始化，然后监听父级的生命周期进行同步
@@ -63,7 +62,7 @@ open class Fragment() : IScreenComponent() {
      * 在[onCreateView]函数状调用此方法，生成视图
      */
     open fun ComposeView(content: @Composable () -> Unit): ComponentViewHolder {
-        return ComponentViewHolder {
+        return mComposeView?: ComponentViewHolder {
             ProvideAndroidCompositionLocals(
                 id = uuid,
                 context = null,

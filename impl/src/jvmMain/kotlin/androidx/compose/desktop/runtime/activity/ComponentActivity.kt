@@ -237,7 +237,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
             Window(
                 onCloseRequest = if (closeActivity) ::finish else ::hide,
                 state = state,
-                visible = !decorView.isHidden.value,
+                visible = !windowHolder.isHidden.value,
                 title = title,
                 icon = icon,
                 undecorated = undecorated,
@@ -252,7 +252,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
                     val lc: LifecycleOwner = LocalLifecycleOwner.current
                     remember {
                         lc.lifecycle.addObserver(this@ComponentActivity)
-                        decorView.composeWindow = this.window
+                        windowHolder.composeWindow = this.window
                     }
                     content()
                 }
