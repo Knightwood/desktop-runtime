@@ -304,7 +304,14 @@ class TestDialog : DialogFragment() {
 ❯ gradle desktopRun -DmainClass=com.github.knightwood.example.MainKt --quiet
 ```
 
-
+# jvm 性能监控
+java 官方开源的性能监控 https://github.com/openjdk/jmc
+对于不同的jdk提供商，他们都有自己实现的性能监控工具，
+比如azul jdk 提供的jmc： https://www.azul.com/products/components/azul-mission-control/#downloads
+下载下来之后，运行如下命令即可打开jmc
+```
+zmc.exe -vm D:\c1\AutoDetectionToolbox\runtime\bin
+```
 ---
 
 ##  Contributing

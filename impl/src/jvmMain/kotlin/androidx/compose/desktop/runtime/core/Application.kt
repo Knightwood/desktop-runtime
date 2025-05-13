@@ -9,6 +9,7 @@ import androidx.compose.desktop.runtime.context.ContextImpl
 import androidx.compose.desktop.runtime.context.ContextWrapper
 import androidx.compose.desktop.runtime.domain.Stop
 import androidx.compose.desktop.runtime.window.ApplicationContentWrapper
+import androidx.jvm.system.core.PathService
 import androidx.lifecycle.Lifecycle.Event.ON_CREATE
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.error
@@ -52,6 +53,9 @@ open class Application : ContextWrapper(), LifecycleOwner {
         mBase = ContextImpl()
     }
 
+    /**
+     * onCreate 方法的调用时机早于compose系统启动，晚于ActivityManager和WindowManager创建
+     */
     @CallSuper
     open fun onCreate() {
         runOnUIThread(mutex) {
@@ -80,7 +84,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
      */
     internal fun prepare(
         aware: Array<out Aware>,
-        applicationContent: ApplicationContentWrapper ?=null,
+        applicationContent: ApplicationContentWrapper? = null,
     ) {
         try {
             fake = false
@@ -152,14 +156,14 @@ private val lock = Any()
  * 一切的开端；一切的终结；
  *
  * @param aware 如果不想再application的onCreate函数中写太多逻辑，可以放到这里的初始化块
+ * @param applicationContent 手动控制applicationScope内容显示
  * @param intentBuilder 启动主界面的参数
  * @param mainActivity 主界面
  * @param applicationClass 应用程序类，默认为Application
- * @param applicationContent 手动控制applicationScope内容显示
  */
 inline fun <reified T : Activity, reified R : Application> startApplication(
     vararg aware: Aware,
-    applicationContent: ApplicationContentWrapper?=null,
+    applicationContent: ApplicationContentWrapper? = null,
     noinline intentBuilder: (Intent.() -> Unit)? = null
 ) {
     startApplication(
@@ -186,6 +190,7 @@ fun startApplication(
     applicationContent: ApplicationContentWrapper? = null,
     intentBuilder: (Intent.() -> Unit)? = null
 ) {
+    PathService.anyClass = mainActivity//用于获取程序目录
     synchronized(lock) {
         if (!::applicationInternal.isInitialized || applicationInternal.fake) {
             // 创建Application实例，并初始化；不要在此处给applicationInternal赋值，因为阻塞会导致永远不会赋值
@@ -203,6 +208,7 @@ fun startApplication(
 //</editor-fold>
 /**
  * 利用[Application.scope]在ui线程运行代码块
+ *
  * @param lock 如果不为null，则运行代码块时，会先获取锁，然后运行代码块，最后释放锁
  * @param block 需要运行在ui线程的代码块
  */

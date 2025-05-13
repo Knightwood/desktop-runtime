@@ -8,34 +8,46 @@ import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
 import java.nio.file.Paths
 
+/**
+ * /应用名称                ---应用目录顶层       a
+ *      /app               ---存储所有的jar包     b
+ *      /app.exe           ---exe文件，应用入口   c
+ *      /runtime           ---java运行时         d
+ *      /conf              ---配置文件           e
+ *
+ */
 @AutoService(AppBasePathProvider::class)
 class WindowsAppPathProvider : AppBasePathProvider {
-    override val userHome: Path
-        get() = Paths.get(SystemProperty["user.home"]!!).toOkioPath()
+    /**
+     * 系统用户目录
+     */
+    override val userHome: Path = SystemProperty["user.home"]!!.toPath()
 
-    override val installPath: Path = getAppJarPath().noOptionParent.normalized()
+    /**
+     * 安装路径，也就是a路径
+     */
+    override val installPath: Path = PathService.getAppJarPath().noOptionParent
+    //SystemProperty["user.dir"]!!.toPath()
 
-    override val installedJarPath: Path = getAppJarPath()
+    /**
+     * jar包路径，就是b路径
+     */
+    override val installedJarPath: Path = PathService.getAppJarPath()
+    //installPath.resolve("app")
 
-    override val installedExePath: Path = getAppExePath()
+    /**
+     * exe路径，就是c路径
+     */
+    override val installedExePath: Path = installPath
 
-    override val configDirPath: Path = getUserPath()
+    /**
+     * 外部配置文件存储目录
+     */
+    override val configDirPath: Path get() = userHome.resolve(".${AppInfoProvider.get().appName}")
 
-    private fun getAppJarPath(): Path {
-        SystemProperty.get("compose.application.resources.dir")?.let {
-            return it.toPath()
-        }
-        SystemProperty.get("skiko.library.path")?.let {
-            return it.toPath()
-        }
-        throw IllegalStateException("Could not find app path")
-    }
+    /**
+     * 配置文件存储目录，就是e路径
+     */
+    override val internalConfigDirPath: Path = installPath.resolve(".conf")
 
-    private fun getAppExePath(): Path {
-        return getAppJarPath().noOptionParent.resolve("bin").normalized()
-    }
-
-    private fun getUserPath(): Path {
-        return userHome.resolve(".${AppInfoProvider.get().appName}")
-    }
 }

@@ -2,7 +2,10 @@ package com.github.knightwood.example
 
 import androidx.compose.desktop.runtime.core.Application
 import androidx.jvm.system.core.AppInfoProvider
+import androidx.jvm.system.core.AppPathProvider
+import androidx.jvm.system.utils.SystemProperty
 import ch.qos.logback.classic.LoggerContext
+import okio.Path.Companion.toPath
 import org.slf4j.LoggerFactory
 import java.util.*
 
@@ -15,7 +18,27 @@ class MainApplication : Application() {
         Locale.setDefault(Locale.US)
         AppInfoProvider.provide {
             appName = "测试"
-            isDevMode = true
+            isDevMode = false
+        }
+//        AppPathProvider.provider.print()
+        testPath()
+    }
+
+    private fun testPath() {
+        SystemProperty.get("user.dir")?.let{
+            println("user.dir : $it")
+        }
+        SystemProperty["user.home"]?.let{
+            println("user.home : $it")
+        }
+        SystemProperty.get("compose.application.resources.dir")?.let {
+            println("compose.application.resources.dir : $it")
+        }
+        SystemProperty.get("skiko.library.path")?.let {
+            println("skiko.library.path : $it")
+        }
+        SystemProperty.get("java.home")?.let {
+            println("java.home : $it")
         }
     }
 

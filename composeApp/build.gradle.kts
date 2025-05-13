@@ -45,6 +45,7 @@ kotlin {
             // SLF4J
             implementation("org.slf4j:slf4j-api:2.0.15")
             implementation("com.github.knightwood:slf4j-api-kotlin:0.0.7")
+            implementation("ch.qos.logback:logback-classic:1.5.12")
             //spi
             implementation(libs.autoService.annoations)
         }

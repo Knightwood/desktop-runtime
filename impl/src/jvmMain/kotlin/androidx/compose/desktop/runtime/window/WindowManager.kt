@@ -24,7 +24,7 @@ fun interface ApplicationContentWrapper {
      * 显示应用程序内容
      */
     @Composable
-    fun show(scope: ApplicationScope, content: ApplicationContent)
+    operator fun invoke(scope: ApplicationScope, content: ApplicationContent)
 }
 
 /**
@@ -37,10 +37,15 @@ class WindowManager private constructor() {
     private val windows: SnapshotStateList<DxWindowHolder> = SnapshotStateList()
 
     //    private val exit: MutableState<Boolean> = mutableStateOf(false)
-    var contentWrapper = ApplicationContentWrapper { scope, windows ->
-        scope.windows()
-    }
+    var contentWrapper: ApplicationContentWrapper? = null
     private var b = MutableStateFlow<Boolean>(false)
+    private val allWindowsUI: ApplicationContent = {
+        windows.forEach { current ->
+            key(current) {//避免无谓的重组
+                current.windowExec(this)
+            }
+        }
+    }
 
     /**
      * 调用application方法，监听windows列表变化，并创建窗口内容。
@@ -51,19 +56,11 @@ class WindowManager private constructor() {
         //调用此函数，主线程就陷入阻塞了，所以需要注意。
         //exitProcessOnExit = false 避免主线程结束
         application(exitProcessOnExit = false) {
-            contentWrapper.show(this) { RunUI() }
+            contentWrapper?.invoke(this, allWindowsUI) ?: allWindowsUI()
+
             val state = b.collectAsState()
             if (state.value) {
                 Unit
-            }
-        }
-    }
-
-    @Composable
-    fun ApplicationScope.RunUI() {
-        windows.forEach { current ->
-            key(current) {//避免无谓的重组
-                current.windowExec(this)
             }
         }
     }

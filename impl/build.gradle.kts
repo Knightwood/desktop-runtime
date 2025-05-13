@@ -29,7 +29,7 @@ kotlin {
 
             //kotlin
             implementation(libs.kotlin.coroutines.core)
-            runtimeOnly(libs.kotlin.coroutines.slf4j)//https://github.com/Kotlin/kotlinx.coroutines/blob/master/integration/kotlinx-coroutines-slf4j/README.md
+//            runtimeOnly(libs.kotlin.coroutines.slf4j)//https://github.com/Kotlin/kotlinx.coroutines/blob/master/integration/kotlinx-coroutines-slf4j/README.md
 
             //compose
             implementation(compose.runtime)
@@ -57,10 +57,10 @@ kotlin {
                 exclude("org.jetbrains.compose.material")
             }
             // logback-classic 1.3.15是最后的java 8 版本，后续版本要求java 11
-            api("ch.qos.logback:logback-classic:1.5.12")
-            implementation(libs.jna)
-            implementation(libs.jna.platform)
-            implementation(libs.jnativehook)
+            implementation("ch.qos.logback:logback-classic:1.5.12")
+//            implementation(libs.jna)
+//            implementation(libs.jna.platform)
+//            implementation(libs.jnativehook)
         }
 
         configurations {

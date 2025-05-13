@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.jvm.system.core.AppInfoProvider
+import androidx.jvm.system.core.PathService
 import androidx.jvm.system.core.painterResource
 import androidx.jvm.system.ui.tray.FixedSystemTray
 import androidx.jvm.system.ui.tray.FixedTrayMenuBuilder.Companion.buildTrayMenu
@@ -23,33 +25,35 @@ import com.github.knightwood.slf4j.kotlin.logFor
 //    MainApplication::class.java
 //)
 var mainActivity: Activity? = null
-
+class Main
 //或者
-fun main() = startApplication<SplashActivity, MainApplication>(
-    applicationContent = { scope, windows ->
-        scope.windows()
-        val painter = painterResource("icons/app_icon.svg")
-        val icon1 = rememberVectorPainter(Icons.Default.Settings)
-        val icon2 = rememberVectorPainter(Icons.Default.ExitToApp)
-        FixedSystemTray(icon = painter, tooltip = "hello",
-            onLeftClick = {
-                mainActivity?.run {
-                    show()
-                    windowHolder.composeWindow.setWindowSizeState(WindowSizeState.Restore)
-                }
-            },
-            menu = remember {
-                buildTrayMenu {
-                    this + FixedTrayMenuItem("settings", icon = icon1)
-                    this + TraySeparator
-                    this + FixedTrayMenuItem("exit", icon = icon2) {
-                        log.info("exit")
-                        MainApplication.ctx.exitApp()
+fun main() {
+    startApplication<SplashActivity, MainApplication>(
+        applicationContent = { scope, windows ->
+            scope.windows()
+            val painter = painterResource("icons/app_icon.svg")
+            val icon1 = rememberVectorPainter(Icons.Default.Settings)
+            val icon2 = rememberVectorPainter(Icons.Default.ExitToApp)
+            FixedSystemTray(icon = painter, tooltip = "hello",
+                onLeftClick = {
+                    mainActivity?.run {
+                        show()
+                        windowHolder.composeWindow.setWindowSizeState(WindowSizeState.Restore)
                     }
-                }
-            })
-    }
-)
+                },
+                menu = remember {
+                    buildTrayMenu {
+                        this + FixedTrayMenuItem("settings", icon = icon1)
+                        this + TraySeparator
+                        this + FixedTrayMenuItem("exit", icon = icon2) {
+                            log.info("exit")
+                            MainApplication.ctx.exitApp()
+                        }
+                    }
+                })
+        }
+    )
+}
 
 
 private val log = logFor("main")

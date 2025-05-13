@@ -22,8 +22,7 @@ internal object ServiceHolder {
         // ActivityManager
         map[ActivityManager.NAME] = ActivityManager
         // WindowManager
-        val windowManager = WindowManager.instance()
-        map[WindowManager.NAME] = windowManager
+        map[WindowManager.NAME] = WindowManager.instance()
     }
 
     fun release(){
