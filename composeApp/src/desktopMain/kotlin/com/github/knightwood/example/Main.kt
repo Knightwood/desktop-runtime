@@ -2,23 +2,28 @@ package com.github.knightwood.example
 
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.core.startApplication
+import androidx.compose.desktop.runtime.utils.UncaughtExceptionContent
+import androidx.compose.desktop.runtime.utils.setUncaughtExceptionHandler
 import androidx.compose.desktop.runtime.window.WindowSizeState
 import androidx.compose.desktop.runtime.window.setWindowSizeState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.jvm.system.core.AppInfoProvider
-import androidx.jvm.system.core.PathService
-import androidx.jvm.system.core.painterResource
+import androidx.compose.ui.window.application
+import androidx.jvm.system.core.*
+import androidx.jvm.system.process.ProcessLocker
 import androidx.jvm.system.ui.tray.FixedSystemTray
 import androidx.jvm.system.ui.tray.FixedTrayMenuBuilder.Companion.buildTrayMenu
 import androidx.jvm.system.ui.tray.FixedTrayMenuItem
 import androidx.jvm.system.ui.tray.TraySeparator
 import com.github.knightwood.example.acts.SplashActivity
 import com.github.knightwood.slf4j.kotlin.logFor
+import kotlinx.coroutines.runBlocking
+import java.lang.RuntimeException
 
 //fun main() = startApplication(
 //    SplashActivity::class.java,
@@ -28,31 +33,39 @@ var mainActivity: Activity? = null
 class Main
 //或者
 fun main() {
+    setUncaughtExceptionHandler()
     startApplication<SplashActivity, MainApplication>(
         applicationContent = { scope, windows ->
-            scope.windows()
-            val painter = painterResource("icons/app_icon.svg")
-            val icon1 = rememberVectorPainter(Icons.Default.Settings)
-            val icon2 = rememberVectorPainter(Icons.Default.ExitToApp)
-            FixedSystemTray(icon = painter, tooltip = "hello",
-                onLeftClick = {
-                    mainActivity?.run {
-                        show()
-                        windowHolder.composeWindow.setWindowSizeState(WindowSizeState.Restore)
-                    }
-                },
-                menu = remember {
-                    buildTrayMenu {
-                        this + FixedTrayMenuItem("settings", icon = icon1)
-                        this + TraySeparator
-                        this + FixedTrayMenuItem("exit", icon = icon2) {
-                            log.info("exit")
-                            MainApplication.ctx.exitApp()
-                        }
-                    }
-                })
+            UncaughtExceptionContent {
+                scope.windows()
+                SystemTray()
+            }
         }
     )
+}
+
+@Composable
+fun SystemTray() {
+    val painter = painterResource("icons/app_icon.svg")
+    val icon1 = rememberVectorPainter(Icons.Default.Settings)
+    val icon2 = rememberVectorPainter(Icons.Default.ExitToApp)
+    FixedSystemTray(icon = painter, tooltip = "hello",
+        onLeftClick = {
+            mainActivity?.run {
+                show()
+                windowHolder.composeWindow.setWindowSizeState(WindowSizeState.Restore)
+            }
+        },
+        menu = remember {
+            buildTrayMenu {
+                this + FixedTrayMenuItem("settings", icon = icon1)
+                this + TraySeparator
+                this + FixedTrayMenuItem("exit", icon = icon2) {
+                    log.info("exit")
+                    MainApplication.ctx.exitApp()
+                }
+            }
+        })
 }
 
 

@@ -3,9 +3,10 @@ package com.github.knightwood.example
 import androidx.compose.desktop.runtime.core.Application
 import androidx.jvm.system.core.AppInfoProvider
 import androidx.jvm.system.core.AppPathProvider
+import androidx.jvm.system.core.keepDirExist
+import androidx.jvm.system.process.ProcessLocker
 import androidx.jvm.system.utils.SystemProperty
 import ch.qos.logback.classic.LoggerContext
-import okio.Path.Companion.toPath
 import org.slf4j.LoggerFactory
 import java.util.*
 
@@ -20,15 +21,19 @@ class MainApplication : Application() {
             appName = "测试"
             isDevMode = false
         }
+        val lockfile = AppPathProvider.provider.internalConfigDirPath
+            .keepDirExist()
+            .resolve("lockfile.lock").toNioPath()
+        ProcessLocker.lock(lockfile)
 //        AppPathProvider.provider.print()
         testPath()
     }
 
     private fun testPath() {
-        SystemProperty.get("user.dir")?.let{
+        SystemProperty.get("user.dir")?.let {
             println("user.dir : $it")
         }
-        SystemProperty["user.home"]?.let{
+        SystemProperty["user.home"]?.let {
             println("user.home : $it")
         }
         SystemProperty.get("compose.application.resources.dir")?.let {

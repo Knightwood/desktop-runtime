@@ -90,6 +90,10 @@ class WindowManager private constructor() {
         windows.clear()
     }
 
+    fun isEmpty(): Boolean {
+        return windows.isEmpty()
+    }
+
     companion object {
         const val NAME = "WindowManager"
 

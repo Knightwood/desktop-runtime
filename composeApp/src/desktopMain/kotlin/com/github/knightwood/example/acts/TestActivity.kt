@@ -8,8 +8,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.jvm.system.core.AppPathProvider
+import androidx.jvm.system.core.keepDirExist
+import androidx.jvm.system.process.ProcessLocker
 import androidx.savedstate.SavedState
-import com.github.knightwood.example.main
 import com.github.knightwood.example.mainActivity
 import com.github.knightwood.slf4j.kotlin.logFor
 import me.i18n.resources.app_name
@@ -59,6 +60,21 @@ open class TestActivity : Activity() {
                             startActivity(TestFragmentActivity::class.java, intent)
                         }) {
                             Text("点击启动fragment测试页面")
+                        }
+
+                        Button(onClick = {
+                            throw RuntimeException("测试异常")
+                        }) {
+                            Text("点击抛出异常")
+                        }
+
+                        Button(onClick = {
+                            val lockfile = AppPathProvider.provider.internalConfigDirPath
+                                .keepDirExist()
+                                .resolve("lockfile.lock").toNioPath()
+                            ProcessLocker.lock(lockfile)
+                        }) {
+                            Text("获取文件锁")
                         }
 
                         HorizontalDivider()

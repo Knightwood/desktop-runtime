@@ -14,7 +14,7 @@ import androidx.lifecycle.Lifecycle.Event.ON_CREATE
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.error
 import com.github.knightwood.slf4j.kotlin.info
-import com.github.knightwood.slf4j.kotlin.kLogger
+import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,6 +25,7 @@ import kotlin.system.exitProcess
  * 作用类似于android中的application
  */
 open class Application : ContextWrapper(), LifecycleOwner {
+    private val logger = logFor("Application")
     private var aware: Array<out Aware> = emptyArray()
     private val mutex = Mutex()
 
@@ -68,12 +69,12 @@ open class Application : ContextWrapper(), LifecycleOwner {
             }
         }
         if (async) scope.launch { f.invoke() } else f.invoke()
-        kLogger.info { "Application onCreate" }
+        logger.info { "Application onCreate" }
     }
 
     @CallSuper
     open fun onDestroy() {
-        kLogger.info { "Application onDestroy" }
+        logger.info { "Application onDestroy" }
     }
     //</editor-fold>
 
@@ -97,7 +98,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
                 ServiceHolder.runningState.collect {
                     when (it) {
                         is Stop -> {
-                            kLogger.info("exit...")
+                            logger.info("exit...")
                             release()
                         }
 
@@ -107,7 +108,8 @@ open class Application : ContextWrapper(), LifecycleOwner {
             }
             onCreate()
         } catch (e: Exception) {
-            e.printStackTrace()
+            logger.error(throwable = e) { "An error was encountered" }
+            throw e
         }
     }
 
@@ -134,7 +136,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
                 lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
                 lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
             } catch (e: Exception) {
-                kLogger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
+                logger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
             }
             onDestroy()
             activityManager().release()
@@ -150,7 +152,10 @@ open class Application : ContextWrapper(), LifecycleOwner {
  */
 internal lateinit var applicationInternal: Application
 private val lock = Any()
-
+fun exit(err: Boolean) {
+    if (::applicationInternal.isInitialized) applicationInternal.exitApp()
+    else exitProcess(if (err) 1 else 0)
+}
 //<editor-fold desc="与activity结合">
 /**
  * 一切的开端；一切的终结；

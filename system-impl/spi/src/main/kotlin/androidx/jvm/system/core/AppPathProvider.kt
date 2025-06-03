@@ -6,8 +6,8 @@ import androidx.jvm.system.utils.noOptionParent
 import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.kLogger
 import okio.FileNotFoundException
-import okio.Path
-import okio.Path.Companion.toPath
+import okio.Path as OkioPath
+import okio.Path.Companion.toPath as toOkioPath
 import java.util.*
 
 
@@ -26,51 +26,73 @@ interface AppBasePathProvider {
     /**
      * 用户目录
      */
-    val userHome: Path
+    val userHome: OkioPath
 
     /**
      * 软件的安装目录
      */
-    val installPath: Path
+    val installPath: OkioPath
 
     /**
      * 软件安装后的jar包路径
      */
-    val installedJarPath: Path
+    val installedJarPath: OkioPath
 
     /**
      * 软件安装后的exe文件路径
      */
-    val installedExePath: Path
+    val installedExePath: OkioPath
 
     /**
      * 配置文件路径，通常按照linux样式,位于 “/用户目录/应用名称”
      */
-    val configDirPath: Path
+    val configDirPath: OkioPath
 
     /**
      * 配置文件路径，位于程序安装目录的conf文件夹下
      */
-    val internalConfigDirPath: Path
+    val internalConfigDirPath: OkioPath
 
     fun print() {}
 }
 
-fun AppPathProvider.resourcePath(): Path {
+/**
+ * 判断文件夹是否存在，如果不存在，则创建文件夹
+ */
+fun OkioPath.keepDirExist(): OkioPath {
+    val dir = this.toFile()
+    if (!dir.exists()) {
+        dir.mkdirs()
+    }
+    return this
+}
+
+/**
+ * 判断文件是否存在，如果不存在，则创建文件
+ */
+fun OkioPath.keepFileExist(): OkioPath {
+    val dir = this.toFile()
+    if (!dir.exists()) {
+        dir.createNewFile()
+    }
+    return this
+}
+
+fun AppPathProvider.resourcePath(): OkioPath {
     SystemProperty.get("compose.application.resources.dir")?.let {
-        return it.toPath()
+        return it.toOkioPath()
     } ?: throw FileNotFoundException("compose.application.resources.dir not found")
 }
 
-fun AppPathProvider.skikoPath(): Path {
+fun AppPathProvider.skikoPath(): OkioPath {
     SystemProperty.get("skiko.library.path")?.let {
-        return it.toPath()
+        return it.toOkioPath()
     } ?: throw FileNotFoundException("compose.application.resources.dir not found")
 }
 
-fun AppPathProvider.jvmPath(): Path {
+fun AppPathProvider.jvmPath(): OkioPath {
     SystemProperty.get("java.home")?.let {
-        return it.toPath()
+        return it.toOkioPath()
     } ?: throw FileNotFoundException("jvm.library.path not found")
 }
 
@@ -134,9 +156,9 @@ object PathService {
      * 用于获取应用程序路径
      */
     var anyClass: Class<*>? = null
-    private var cache: MutableMap<Class<*>, Path> = mutableMapOf()
+    private var cache: MutableMap<Class<*>, OkioPath> = mutableMapOf()
 
-    fun getAppJarPath(): Path {
+    fun getAppJarPath(): OkioPath {
         checkNotNull(anyClass) {
             "anyClass is null"
         }
@@ -150,8 +172,8 @@ object PathService {
      * 为什么必须传入一个class，而不是默认一个：
      * 在idea中运行时，比如引入的jar包是来自本地.m2仓库，那么获取的路径是.m2仓库下的jar包路径，而不是项目目录
      */
-    fun getAppJarPath(clazz: Class<*>): Path {
-        return cache[clazz] ?: JvmUtils.getJarPath(clazz).toPath().noOptionParent.also {
+    fun getAppJarPath(clazz: Class<*>): OkioPath {
+        return cache[clazz] ?: JvmUtils.getJarPath(clazz).toOkioPath().noOptionParent.also {
             cache[clazz] = it
         }
     }
@@ -159,35 +181,35 @@ object PathService {
 }
 
 class DebugAppPathProvider : AppBasePathProvider {
-    private val composeAppDir = SystemProperty.get("user.dir")!!.toPath()
+    private val composeAppDir = SystemProperty.get("user.dir")!!.toOkioPath()
 
     /**
      * 安装路径：project路径
      */
-    override val installPath: Path = composeAppDir
+    override val installPath: OkioPath = composeAppDir
 
     /**
      * jar包的存储路径，ide环境下不存在
      */
-    override val installedJarPath: Path = "".toPath()
+    override val installedJarPath: OkioPath = "".toOkioPath()
 
     /**
      * exe路径不存在，ide环境下不存在
      */
-    override val installedExePath: Path = "".toPath()
+    override val installedExePath: OkioPath = "".toOkioPath()
 
     /**
      * 系统用户目录
      */
-    override val userHome: Path = SystemProperty["user.home"]!!.toPath()
+    override val userHome: OkioPath = SystemProperty["user.home"]!!.toOkioPath()
 
-    override val configDirPath: Path
+    override val configDirPath: OkioPath
         get() = userHome.resolve(".${AppInfoProvider.get().appName}")
 
     /**
      * 配置文件路径，位于project目录的.conf文件夹下
      */
-    override val internalConfigDirPath: Path = composeAppDir.resolve(".conf")
+    override val internalConfigDirPath: OkioPath = composeAppDir.resolve(".conf")
 
 }
 
