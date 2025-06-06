@@ -3,6 +3,7 @@ package com.github.knightwood.example.acts
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.material3.Text
 import androidx.compose.desktop.runtime.activity.Intent
+import androidx.compose.desktop.runtime.utils.err.SwingErrorDialog
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -66,6 +67,11 @@ open class TestActivity : Activity() {
                             throw RuntimeException("测试异常")
                         }) {
                             Text("点击抛出异常")
+                        }
+                        Button(onClick = {
+                            SwingErrorDialog.showErrorDialog(RuntimeException("测试异常"))
+                        }) {
+                            Text("swing弹窗")
                         }
 
                         Button(onClick = {

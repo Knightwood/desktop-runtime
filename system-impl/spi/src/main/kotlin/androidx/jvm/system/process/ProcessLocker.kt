@@ -9,7 +9,8 @@ object ProcessLocker {
     private val logger = logFor("ProcessLocker")
 
     /**
-     * 获取文件锁，如果无法获取则抛出异常
+     * 获取文件锁，如果无法获取则抛出异常。
+     * 非阻塞，不需要放进子线程中。
      */
     fun lock(path: Path) {
         // 防止重复加锁
