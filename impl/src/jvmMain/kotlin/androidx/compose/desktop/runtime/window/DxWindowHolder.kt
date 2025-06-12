@@ -30,7 +30,7 @@ class DxWindowHolder(
     var isAttachedToApplication: Boolean = false
 
     //setContentView传入的内容，需要显示的页面内容
-    var rootView: (@Composable ApplicationScope.() -> Unit)? = null
+    var rootView: (ApplicationContent)? = null
 
     @Composable
     fun windowExec(scope: ApplicationScope) {
@@ -54,7 +54,7 @@ class DxWindowHolder(
      * 1. 如果设置为多application，则直接使用新的application运行ui界面
      * 2. 如果设置为单application，则将自己注册进[WindowManager]
      */
-    infix fun show(content: @Composable() (ApplicationScope.() -> Unit)) {
+    infix fun show(content: ApplicationContent) {
         this.rootView = content
         if (multiApplication) {
             application {

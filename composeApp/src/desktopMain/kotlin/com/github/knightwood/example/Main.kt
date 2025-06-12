@@ -4,6 +4,8 @@ import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.core.startApplication
 import androidx.compose.desktop.runtime.utils.UncaughtExceptionContent
 import androidx.compose.desktop.runtime.utils.setUncaughtExceptionHandler
+import androidx.compose.desktop.runtime.window.ApplicationContent
+import androidx.compose.desktop.runtime.window.ApplicationContentWrapper
 import androidx.compose.desktop.runtime.window.WindowSizeState
 import androidx.compose.desktop.runtime.window.setWindowSizeState
 import androidx.compose.material.icons.Icons
@@ -13,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.application
 import androidx.jvm.system.core.*
 import androidx.jvm.system.process.ProcessLocker
@@ -30,15 +33,20 @@ import java.lang.RuntimeException
 //    MainApplication::class.java
 //)
 var mainActivity: Activity? = null
+
 class Main
+
 //或者
 fun main() {
     setUncaughtExceptionHandler()
     startApplication<SplashActivity, MainApplication>(
-        applicationContent = { scope, windows ->
-            UncaughtExceptionContent {
-                scope.windows()
-                SystemTray()
+        applicationContent = object : ApplicationContentWrapper {
+            @Composable
+            override fun ApplicationScope.invoke( content: ApplicationContent) {
+                UncaughtExceptionContent {
+                    content()
+                    SystemTray()
+                }
             }
         }
     )

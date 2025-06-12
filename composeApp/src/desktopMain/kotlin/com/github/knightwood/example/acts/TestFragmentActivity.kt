@@ -1,10 +1,7 @@
 package com.github.knightwood.example.acts
 
 import androidx.compose.desktop.runtime.activity.FragmentActivity
-import androidx.compose.desktop.runtime.fragment.Fragment
-import androidx.compose.desktop.runtime.fragment.ComponentViewHolder
-import androidx.compose.desktop.runtime.fragment.DialogFragment
-import androidx.compose.desktop.runtime.fragment.register
+import androidx.compose.desktop.runtime.fragment.*
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.HorizontalDivider

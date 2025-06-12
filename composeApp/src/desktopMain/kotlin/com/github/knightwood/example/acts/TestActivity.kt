@@ -14,6 +14,7 @@ import androidx.jvm.system.process.ProcessLocker
 import androidx.savedstate.SavedState
 import com.github.knightwood.example.mainActivity
 import com.github.knightwood.slf4j.kotlin.logFor
+import kotlinx.coroutines.*
 import me.i18n.resources.app_name
 import org.jetbrains.compose.resources.stringResource
 import kotlin.random.Random
@@ -23,6 +24,8 @@ open class TestActivity : Activity() {
     val randoms = Random.nextInt(0, 11)
     var tag = "Activity$randoms"
     private val logger = logFor(tag)
+    private val scope = CoroutineScope(Dispatchers.Default) + SupervisorJob()
+
     override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
         mainActivity = this
@@ -64,12 +67,21 @@ open class TestActivity : Activity() {
                         }
 
                         Button(onClick = {
-                            throw RuntimeException("测试异常")
+                            scope.launch {
+                                throw RuntimeException("测试异常")
+                            }
                         }) {
-                            Text("点击抛出异常")
+                            //如果协程作用域不是SupervisorJob，会在抛出异常后结束掉协程作用域，无法再次使用
+                            Text("协程抛出异常")
                         }
                         Button(onClick = {
-                            SwingErrorDialog.showErrorDialog(RuntimeException("测试异常"))
+                            throw RuntimeException("测试异常")
+                        }) {
+                            Text("ui抛出异常")
+                        }
+
+                        Button(onClick = {
+                            SwingErrorDialog.showErrorDialog(RuntimeException("测试异常弹窗"))
                         }) {
                             Text("swing弹窗")
                         }

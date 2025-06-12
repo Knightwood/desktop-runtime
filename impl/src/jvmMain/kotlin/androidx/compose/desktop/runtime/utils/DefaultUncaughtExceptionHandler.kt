@@ -10,6 +10,8 @@ import androidx.compose.ui.window.LocalWindowExceptionHandlerFactory
 import androidx.compose.ui.window.WindowExceptionHandler
 import androidx.compose.ui.window.WindowExceptionHandlerFactory
 import com.github.knightwood.slf4j.kotlin.logFor
+import java.awt.Component
+import java.awt.Dialog
 import java.awt.Window
 import java.awt.event.ActionEvent
 import java.awt.event.WindowEvent
@@ -23,17 +25,20 @@ typealias ErrHandler = (Throwable) -> Unit
 
 /**
  * @param copyAction: (Throwable) -> Unit 当错误弹窗弹出，点击复制按钮之后触发
- * @param okAction: (Throwable) -> Unit 当错误弹窗弹出，点击确定按钮之后触发
+ * @param continueAction: (Throwable) -> Unit 当错误弹窗弹出，点击忽略按钮之后触发
+ * @param closeAppAction: (Throwable) -> Unit 当错误弹窗弹出，点击确定按钮之后触发
  */
 fun setUncaughtExceptionHandler(
     copyAction: ErrHandler? = null,
-    okAction: ErrHandler? = null
+    continueAction: ErrHandler? = null,
+    closeAppAction: ErrHandler? = null
 ) {
     DefaultUncaughtExceptionHandler.apply {
         this.copyAction = copyAction
-        if (okAction != null) {
-            this.okAction = okAction
+        if (closeAppAction != null) {
+            this.closeAppAction = closeAppAction
         }
+        this.continueAction = continueAction
     }
     Thread.setDefaultUncaughtExceptionHandler(DefaultUncaughtExceptionHandler)
 }
@@ -76,7 +81,8 @@ fun UncaughtExceptionContent(content: @Composable () -> Unit) {
  */
 object DefaultUncaughtExceptionHandler : UncaughtExceptionHandler, WindowExceptionHandlerFactory {
     var copyAction: ErrHandler? = null
-    var okAction: ErrHandler = { exit(true) }
+    var continueAction: ErrHandler? = null
+    var closeAppAction: ErrHandler = { exit(true) }
     var dialog: (Window?, Throwable) -> Unit = ::showErrDialog
 
     //<editor-fold desc="java错误捕获">
@@ -110,30 +116,33 @@ object DefaultUncaughtExceptionHandler : UncaughtExceptionHandler, WindowExcepti
     fun showErrDialog(
         window: Window?, throwable: Throwable,
     ) {
-        buildDialog(throwable, window?.takeIf { it.isDisplayable })
-        //关闭当前窗口
-        window?.dispatchEvent(WindowEvent(window, WindowEvent.WINDOW_CLOSED))
+        window?.let {
+            buildDialog(throwable, it)
+            //关闭当前窗口
+            window.dispatchEvent(WindowEvent(window, WindowEvent.WINDOW_CLOSED))
+        } ?: buildDialog(throwable)
     }
 
     private fun buildDialog(
         throwable: Throwable,
-        parentComponent: Window?,
+        parentComponent: Window,
     ) {
-        val okButton = JButton("复制错误日志")
-        val cancelButton = JButton("关闭")
+        val copyButton = JButton("复制日志并关闭")
+        val closeAppButton = JButton("关闭应用")
 
-        okButton.addActionListener {
-            parentComponent?.dispose()
+        copyButton.addActionListener {
             SwingExtension.writeClipboard(throwable.stackTraceToString())
             copyAction?.invoke(throwable)
+            parentComponent.dispose()
+            closeAppAction.invoke(throwable)
         }
 
-        cancelButton.addActionListener { e: ActionEvent? ->
-            parentComponent?.dispose()
-            okAction.invoke(throwable)
+        closeAppButton.addActionListener { e: ActionEvent? ->
+            parentComponent.dispose()
+            closeAppAction.invoke(throwable)
         }
 
-        val options = arrayOf<Any>(okButton, cancelButton)
+        val options = arrayOf<Any>(copyButton, closeAppButton)
         JOptionPane.showOptionDialog(
             /* parentComponent = */ parentComponent,
             /* message = */ "错误: ${throwable.message ?: "未知的错误"}",
@@ -144,6 +153,46 @@ object DefaultUncaughtExceptionHandler : UncaughtExceptionHandler, WindowExcepti
             /* options = */ options,
             /* initialValue = */ options[0]
         )
+    }
+
+    private fun buildDialog(
+        throwable: Throwable,
+    ) {
+        val copyButton = JButton("复制错误日志")
+        val continueButton = JButton("忽略")
+        val closeAppButton = JButton("关闭应用")
+
+        copyButton.addActionListener {
+            SwingExtension.writeClipboard(throwable.stackTraceToString())
+            copyAction?.invoke(throwable)
+            // 关闭弹窗
+            SwingUtilities.getWindowAncestor(it.source as Component)?.dispose()
+        }
+
+        continueButton.addActionListener {
+            continueAction?.invoke(throwable)
+            // 关闭弹窗
+            SwingUtilities.getWindowAncestor(it.source as Component)?.dispose()
+        }
+
+        closeAppButton.addActionListener { e: ActionEvent? ->
+            closeAppAction.invoke(throwable)
+        }
+
+
+        val options = arrayOf<Any>(copyButton, continueButton, closeAppButton)
+        // 手动创建 JOptionPane 并设置为非模态
+        val pane = JOptionPane(
+            "错误: ${throwable.message ?: "未知的错误"}",
+            JOptionPane.ERROR_MESSAGE,
+            JOptionPane.DEFAULT_OPTION,
+            null,
+            options,
+            options[0]
+        )
+        val dialog = pane.createDialog( "我们遇到了一些问题")
+        dialog.setModalityType(Dialog.ModalityType.MODELESS) //模态窗口会无法点击次窗口下面的窗口，知道关闭此窗口
+        dialog.isVisible = true
     }
 
     //</editor-fold>

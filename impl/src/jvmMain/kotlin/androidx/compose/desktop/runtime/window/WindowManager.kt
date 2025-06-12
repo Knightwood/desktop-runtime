@@ -13,19 +13,30 @@ typealias ApplicationContent = @Composable ApplicationScope.() -> Unit
  * 用于让用户可以手动操控applicationScope，以及内容显示 用法：实现接口，并手动调用接口方法中的函数参数
  *
  * ```
- * object:ApplicationContentWrapper { scope, windows ->
+ * object:ApplicationContentWrapper { windows ->
  *         // scope：applicationScope，windows：所有window列表
- *         scope.windows()
+ *         windows()
  * }
  * ```
  */
 fun interface ApplicationContentWrapper {
+
     /**
      * 显示应用程序内容
+     *
+     * @param content 所有的窗口
+     *
+     * 在此方法的实现中必须手动调用 content()，否则将无任何界面显示。
+     *
+     * @receiver scope applicationScope
      */
     @Composable
-    operator fun invoke(scope: ApplicationScope, content: ApplicationContent)
+    operator fun ApplicationScope.invoke(content: ApplicationContent)
 }
+
+@Composable
+internal fun ApplicationContentWrapper.ShowUI(scope: ApplicationScope, content: ApplicationContent) =
+    scope.invoke(content)
 
 /**
  * 有两种实现方式： 一种是每个window都在新的application块中调用，这个实现会比较简单。
@@ -56,8 +67,7 @@ class WindowManager private constructor() {
         //调用此函数，主线程就陷入阻塞了，所以需要注意。
         //exitProcessOnExit = false 避免主线程结束
         application(exitProcessOnExit = false) {
-            contentWrapper?.invoke(this, allWindowsUI) ?: allWindowsUI()
-
+            contentWrapper?.ShowUI(this, allWindowsUI) ?: this.allWindowsUI()
             val state = b.collectAsState()
             if (state.value) {
                 Unit

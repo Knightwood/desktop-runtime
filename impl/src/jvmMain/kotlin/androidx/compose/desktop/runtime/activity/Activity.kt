@@ -10,6 +10,7 @@ import androidx.lifecycle.Lifecycle.Event.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.desktop.runtime.context.IContext
 import androidx.compose.desktop.runtime.context.ThemedContext
+import androidx.compose.desktop.runtime.window.ApplicationContent
 import androidx.compose.desktop.runtime.window.DxWindowHolder
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.*
@@ -178,7 +179,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 
     open fun onStart() {}
 
-    open fun setContent(content: @Composable ApplicationScope.() -> Unit) {
+    open fun setContent(content: ApplicationContent) {
         if (!this::windowHolder.isInitialized) {
             throw IllegalStateException("window is not initialized")
         }

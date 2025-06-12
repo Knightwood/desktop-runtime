@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.*
-import com.github.knightwood.slf4j.kotlin.kLogger
 
 /**
  * 用法：
@@ -62,7 +61,7 @@ open class Fragment() : IScreenComponent() {
      * 在[onCreateView]函数状调用此方法，生成视图
      */
     open fun ComposeView(content: @Composable () -> Unit): ComponentViewHolder {
-        return mComposeView?: ComponentViewHolder {
+        return mComposeView ?: ComponentViewHolder {
             ProvideAndroidCompositionLocals(
                 id = uuid,
                 context = null,
@@ -74,7 +73,7 @@ open class Fragment() : IScreenComponent() {
                     content()
                 }
             }
-        }
+        }.also { mComposeView = it }
     }
 
     open fun show() {
