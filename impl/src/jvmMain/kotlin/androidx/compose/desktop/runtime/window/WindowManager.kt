@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import org.jetbrains.skiko.MainUIDispatcher
 
 typealias ApplicationContent = @Composable ApplicationScope.() -> Unit
+typealias ComposableContent = @Composable () -> Unit
 
 /**
  * 用于让用户可以手动操控applicationScope，以及内容显示 用法：实现接口，并手动调用接口方法中的函数参数
@@ -31,11 +32,11 @@ fun interface ApplicationContentWrapper {
      * @receiver scope applicationScope
      */
     @Composable
-    operator fun ApplicationScope.invoke(content: ApplicationContent)
+    operator fun ApplicationScope.invoke(content: ComposableContent)
 }
 
 @Composable
-internal fun ApplicationContentWrapper.ShowUI(scope: ApplicationScope, content: ApplicationContent) =
+internal fun ApplicationContentWrapper.ShowUI(scope: ApplicationScope, content: ComposableContent) =
     scope.invoke(content)
 
 /**
@@ -50,13 +51,6 @@ class WindowManager private constructor() {
     //    private val exit: MutableState<Boolean> = mutableStateOf(false)
     var contentWrapper: ApplicationContentWrapper? = null
     private var b = MutableStateFlow<Boolean>(false)
-    private val allWindowsUI: ApplicationContent = {
-        windows.forEach { current ->
-            key(current) {//避免无谓的重组
-                current.windowExec(this)
-            }
-        }
-    }
 
     /**
      * 调用application方法，监听windows列表变化，并创建窗口内容。
@@ -67,10 +61,19 @@ class WindowManager private constructor() {
         //调用此函数，主线程就陷入阻塞了，所以需要注意。
         //exitProcessOnExit = false 避免主线程结束
         application(exitProcessOnExit = false) {
-            contentWrapper?.ShowUI(this, allWindowsUI) ?: this.allWindowsUI()
+            contentWrapper?.ShowUI(scope = this, content = { AllWindowUi() }) ?: this.AllWindowUi()
             val state = b.collectAsState()
             if (state.value) {
                 Unit
+            }
+        }
+    }
+
+    @Composable
+    fun ApplicationScope.AllWindowUi() {
+        windows.forEach { current ->
+            key(current) {//避免无谓的重组
+                current.windowExec(this)
             }
         }
     }

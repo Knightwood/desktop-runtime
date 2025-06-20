@@ -29,11 +29,15 @@ typealias ErrHandler = (Throwable) -> Unit
  * @param closeAppAction: (Throwable) -> Unit 当错误弹窗弹出，点击确定按钮之后触发
  */
 fun setUncaughtExceptionHandler(
+    icon:javax.swing.Icon?=null,
+    title:String?=null,
     copyAction: ErrHandler? = null,
     continueAction: ErrHandler? = null,
     closeAppAction: ErrHandler? = null
 ) {
     DefaultUncaughtExceptionHandler.apply {
+        this.icon = icon
+        this.title= title
         this.copyAction = copyAction
         if (closeAppAction != null) {
             this.closeAppAction = closeAppAction
@@ -47,9 +51,15 @@ fun setUncaughtExceptionHandler(
  * 传入自定义的弹窗，完全接管错误弹窗显示和处理
  */
 fun setUncaughtExceptionHandler(
+    icon:javax.swing.Icon?=null,
+    title:String?=null,
     dialog: (Window?, Throwable) -> Unit
 ) {
-    DefaultUncaughtExceptionHandler.dialog = dialog
+    DefaultUncaughtExceptionHandler.apply {
+        this.icon = icon
+        this.title= title
+        this.dialog = dialog
+    }
     Thread.setDefaultUncaughtExceptionHandler(DefaultUncaughtExceptionHandler)
 }
 
@@ -80,6 +90,8 @@ fun UncaughtExceptionContent(content: @Composable () -> Unit) {
  * ```
  */
 object DefaultUncaughtExceptionHandler : UncaughtExceptionHandler, WindowExceptionHandlerFactory {
+    var icon: javax.swing.Icon? = null
+    var title: String? = null
     var copyAction: ErrHandler? = null
     var continueAction: ErrHandler? = null
     var closeAppAction: ErrHandler = { exit(true) }
@@ -146,10 +158,10 @@ object DefaultUncaughtExceptionHandler : UncaughtExceptionHandler, WindowExcepti
         JOptionPane.showOptionDialog(
             /* parentComponent = */ parentComponent,
             /* message = */ "错误: ${throwable.message ?: "未知的错误"}",
-            /* title = */ "我们遇到了一些问题",
+            /* title = */ title?: "我们遇到了一些问题",
             /* optionType = */ JOptionPane.DEFAULT_OPTION,
             /* messageType = */ JOptionPane.ERROR_MESSAGE,
-            /* icon = */ null,
+            /* icon = */ icon,
             /* options = */ options,
             /* initialValue = */ options[0]
         )
@@ -183,14 +195,14 @@ object DefaultUncaughtExceptionHandler : UncaughtExceptionHandler, WindowExcepti
         val options = arrayOf<Any>(copyButton, continueButton, closeAppButton)
         // 手动创建 JOptionPane 并设置为非模态
         val pane = JOptionPane(
-            "错误: ${throwable.message ?: "未知的错误"}",
-            JOptionPane.ERROR_MESSAGE,
-            JOptionPane.DEFAULT_OPTION,
-            null,
-            options,
-            options[0]
+            /* message = */ "错误: ${throwable.message ?: "未知的错误"}",
+            /* messageType = */ JOptionPane.ERROR_MESSAGE,
+            /* optionType = */ JOptionPane.DEFAULT_OPTION,
+            /* icon = */ icon,
+            /* options = */ options,
+            /* initialValue = */ options[0]
         )
-        val dialog = pane.createDialog( "我们遇到了一些问题")
+        val dialog = pane.createDialog( null,title?:"我们遇到了一些问题")//传入null，不让图标显示在任务栏中
         dialog.setModalityType(Dialog.ModalityType.MODELESS) //模态窗口会无法点击次窗口下面的窗口，知道关闭此窗口
         dialog.isVisible = true
     }

@@ -4,10 +4,7 @@ import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.core.startApplication
 import androidx.compose.desktop.runtime.utils.UncaughtExceptionContent
 import androidx.compose.desktop.runtime.utils.setUncaughtExceptionHandler
-import androidx.compose.desktop.runtime.window.ApplicationContent
-import androidx.compose.desktop.runtime.window.ApplicationContentWrapper
-import androidx.compose.desktop.runtime.window.WindowSizeState
-import androidx.compose.desktop.runtime.window.setWindowSizeState
+import androidx.compose.desktop.runtime.window.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Settings
@@ -42,7 +39,7 @@ fun main() {
     startApplication<SplashActivity, MainApplication>(
         applicationContent = object : ApplicationContentWrapper {
             @Composable
-            override fun ApplicationScope.invoke( content: ApplicationContent) {
+            override fun ApplicationScope.invoke(content: ComposableContent) {
                 UncaughtExceptionContent {
                     content()
                     SystemTray()
