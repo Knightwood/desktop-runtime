@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalComposeUiApi::class)
+
 package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
@@ -12,6 +14,7 @@ import androidx.compose.desktop.runtime.context.IContext
 import androidx.compose.desktop.runtime.context.ThemedContext
 import androidx.compose.desktop.runtime.window.ApplicationContent
 import androidx.compose.desktop.runtime.window.DxWindowHolder
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.*
 import androidx.savedstate.SavedState
@@ -111,7 +114,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     internal fun attach(
         context: IContext,
         intent: Intent,
-        block: ActivityResult?
+        block: ActivityResult?,
     ) {
         mBase = context
         this.intent = intent
@@ -218,6 +221,10 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     @CallSuper
     open fun onDestroy() {
         onSaveInstanceState(bundle)
+//        val saved = window.saveState()
+//        if (saved != null) {
+//            activityManager().setBundle(uuid, saved)
+//        }
         finished = true
         ActivityManager.remove(uuid)
         windowHolder.release()
@@ -290,7 +297,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         alwaysOnTop: Boolean = false,
         onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
         onKeyEvent: (KeyEvent) -> Boolean = { false },
-        content: @Composable FrameWindowScope.() -> Unit
+        content: @Composable FrameWindowScope.() -> Unit,
     ) {
         Window(
             onCloseRequest = onCloseRequest,

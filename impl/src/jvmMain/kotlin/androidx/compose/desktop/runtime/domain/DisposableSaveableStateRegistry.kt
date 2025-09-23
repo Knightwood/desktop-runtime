@@ -7,7 +7,6 @@ import androidx.compose.desktop.runtime.context.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.saveable.SaveableStateRegistry
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshots.SnapshotMutableState
 import androidx.core.bundle.Bundle
 import androidx.lifecycle.LifecycleOwner
@@ -22,9 +21,9 @@ import java.io.Serializable
 
 /**
  * 功能类似android中调用setContent时，其内部提供LocalSaveableStateRegistry。
- *
  * * compose 1.8.0-alpha04之前：数据存储恢复使用的是Bundle类
- * * compose 1.8.0-alpha04之后：数据存储恢复使用的是SavedState类，与之前的bundle类相似，都是内部持有map实现功能，但是限制更少，使用更方便。
+ * * compose
+ *   1.8.0-alpha04之后：数据存储恢复使用的是SavedState类，与之前的bundle类相似，都是内部持有map实现功能，但是限制更少，使用更方便。
  *
  * 需要注意的是，迁移到SavedState类并没有实现SaveState存储和恢复api，这一部分仍需要我们自己实现。
  *
@@ -32,9 +31,10 @@ import java.io.Serializable
  * ```
  * "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-savedstate:2.9.0-alpha05"
  * "org.jetbrains.androidx.savedstate:savedstate:1.3.0-alpha05"
- *```
+ * ```
  *
- *如果你想用bundle类，需要额外引入
+ * 如果你想用bundle类，需要额外引入
+ *
  * ```
  * "org.jetbrains.androidx.core:core-bundle:"1.1.0-alpha03"
  *
@@ -47,7 +47,7 @@ fun ProvideAndroidCompositionLocals(
     lifecycleOwner: LifecycleOwner,
     viewModelStoreOwner: ViewModelStoreOwner,
     savedStateRegistryOwner: SavedStateRegistryOwner,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val saveableStateRegistry = remember {
         DisposableSaveableStateRegistry(id, savedStateRegistryOwner)
@@ -62,6 +62,7 @@ fun ProvideAndroidCompositionLocals(
         LocalLifecycleOwner provides lifecycleOwner,
         LocalViewModelStoreOwner provides viewModelStoreOwner,
         LocalSaveableStateRegistry provides saveableStateRegistry,
+//        LocalSavedStateRegistryOwner provides savedStateRegistryOwner,
     ) {
         content()
     }
@@ -83,7 +84,7 @@ fun ProvideAndroidCompositionLocals(
  */
 internal fun DisposableSaveableStateRegistry(
     id: String,
-    savedStateRegistryOwner: SavedStateRegistryOwner
+    savedStateRegistryOwner: SavedStateRegistryOwner,
 ): DisposableSaveableStateRegistry {
     val key = "${SaveableStateRegistry::class.java.simpleName}:$id"
 
@@ -123,7 +124,7 @@ internal fun DisposableSaveableStateRegistry(
  */
 internal class DisposableSaveableStateRegistry(
     saveableStateRegistry: SaveableStateRegistry,
-    private val onDispose: () -> Unit
+    private val onDispose: () -> Unit,
 ) : SaveableStateRegistry by saveableStateRegistry {
 
     fun dispose() {
@@ -217,10 +218,25 @@ private fun Map<String, List<Any?>>.toSaveState(): SavedState {
  * 反射SavedState，获取map
  */
 fun SavedState.toMap(): Map<String, Any?> {
+    return getSaved()
+}
+
+/**
+ * 使用反射获取SavedState中的map
+ */
+fun SavedState.getSaved(): MutableMap<String, Any?> {
     val field = this.javaClass.getDeclaredField("map")
     field.isAccessible = true
     val map = field.get(this) as MutableMap<String, Any?>
     return map
+}
+
+/**
+ * 将两个SavedState的数据合并
+ */
+fun SavedState.merge(other: SavedState): SavedState {
+    this.getSaved().putAll(other.toMap())
+    return this
 }
 
 //</editor-fold>
@@ -229,7 +245,7 @@ fun SavedState.toMap(): Map<String, Any?> {
  * 反射Bundle中的bundleData，将数据放入Bundle
  */
 fun Bundle.setObjectFixed(key: String, value: Any?) {
-    val map = this.fix()
+    val map = this.getSaved()
     map.put(key, value)
 }
 
@@ -237,14 +253,14 @@ fun Bundle.setObjectFixed(key: String, value: Any?) {
  * 反射Bundle中的bundleData，获取map中存储的数据
  */
 fun Bundle.getData(key: String): Any? {
-    val map = this.fix()
+    val map = this.getSaved()
     return map.get(key)
 }
 
 /**
  * 反射Bundle，获取bundle中存储数据的map
  */
-fun Bundle.fix(): MutableMap<String, Any?> {
+fun Bundle.getSaved(): MutableMap<String, Any?> {
     val field = this.javaClass.getDeclaredField("bundleData")
     field.isAccessible = true
     val map = field.get(this) as MutableMap<String, Any?>

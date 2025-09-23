@@ -13,9 +13,10 @@ interface IBundleHolder {
     fun obtainBundleNullable(uuid: String): SavedState?
     fun clearBundle(uuid: String)
     fun clear()
+    fun setBundle(uuid: String, bundle: SavedState)
 }
 
-class BundleHolder :IBundleHolder{
+class BundleHolder : IBundleHolder {
     /**
      * 存储SaveState的bundle
      */
@@ -32,8 +33,13 @@ class BundleHolder :IBundleHolder{
     override fun clearBundle(uuid: String) {
         bundleSaverMap.remove(uuid)
     }
+
     override fun clear() {
         bundleSaverMap.clear()
+    }
+
+    override fun setBundle(uuid: String, bundle: SavedState) {
+        bundleSaverMap[uuid] = bundle
     }
 }
 

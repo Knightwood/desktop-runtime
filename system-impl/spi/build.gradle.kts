@@ -26,6 +26,7 @@ fun getFeatures() = setOf(
 )
 
 kotlin {
+    jvmToolchain(17)
     compilerOptions {
         val optIns = getOptIns().map { "-Xopt-in=$it" }
         val features = getFeatures().map { "-X$it" }

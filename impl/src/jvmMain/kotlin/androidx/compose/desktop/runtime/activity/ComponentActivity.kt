@@ -1,10 +1,15 @@
+@file:OptIn(ExperimentalComposeUiApi::class)
+
 package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
 import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocals
+import androidx.compose.desktop.runtime.domain.merge
+import androidx.compose.desktop.runtime.domain.toMap
 import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.window.FrameWindowScope
@@ -19,6 +24,7 @@ import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
+import com.github.knightwood.slf4j.kotlin.logFor
 import kotlin.reflect.KClass
 
 /**
@@ -102,7 +108,7 @@ import kotlin.reflect.KClass
  */
 open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewModelProviderFactory,
     SavedStateRegistryOwner {
-
+    private val logger = logFor("ComponentActivity")
     private var _viewModelStore: ViewModelStore? = null
     override val viewModelStore: ViewModelStore
         /**
@@ -141,6 +147,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
         enableSavedStateHandles()
     }
 
+    @CallSuper
     override fun onCreate(savedInstanceState: SavedState?) {
         savedStateRegistryController.performRestore(bundle)
         super.onCreate(savedInstanceState)
@@ -161,6 +168,11 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
 
     override fun onSaveInstanceState(outState: SavedState) {
         super.onSaveInstanceState(outState)
+//        val saved = window.saveState()
+//        if (saved != null) {
+//            outState.merge(saved)
+//            logger.info("onSaveInstanceState: window.saveState() is not null")
+//        }
         savedStateRegistryController.performSave(outState)
     }
 
@@ -190,10 +202,11 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
     @CallSuper
     override fun onDestroy() {
         super.onDestroy()
-        if (intent.clearSaveState){
+        if (intent.clearSaveState) {
             activityManager().clearBundle(uuid)
         }
     }
+
     /**
      * 创建一个ComposeView，并绑定生命周期。
      *
