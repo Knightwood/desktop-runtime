@@ -2,6 +2,7 @@ package androidx.compose.desktop.runtime.fragment
 
 import androidx.compose.desktop.runtime.activity.IBundleHolder
 import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocals
+import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocalsForDialog
 import androidx.compose.desktop.runtime.window.ComposableContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -79,10 +80,10 @@ class ComposeViewHolder(private val component: IScreenComponent) : IComposableVi
 
     @Composable
     override fun invoke() {
-        ProvideAndroidCompositionLocals(
+        ProvideAndroidCompositionLocalsForDialog(
             id = component.uuid,
             context = null,
-            activityLifecycleOwner = component,
+            lifecycleOwner = component,
             viewModelStoreOwner = component,
             savedStateRegistryOwner = component
         ) {

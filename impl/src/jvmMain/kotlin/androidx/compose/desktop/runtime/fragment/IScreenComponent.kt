@@ -93,12 +93,16 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     /**
      * 在生成实例后，调用此方法开始此类的生命周期流程
      */
-    fun prepare(parentLifecycle: Lifecycle, bundleHolder: IBundleHolder) {
+    fun prepare(parentLifecycle: Lifecycle? = null, bundleHolder: IBundleHolder) {
         this.bundleHolder = bundleHolder
-        this.parentLifecycle = WeakReference(parentLifecycle)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
         onCreate(bundleHolder.obtainBundleNullable(uuid))
-        parentLifecycle.addObserver(this)
+        parentLifecycle?.let {
+            this.parentLifecycle = WeakReference(it)
+            it.addObserver(this)
+        } ?: let {
+            // todo 如果不同步父级生命周期，或许需要一些其他处理
+        }
     }
 
     /**

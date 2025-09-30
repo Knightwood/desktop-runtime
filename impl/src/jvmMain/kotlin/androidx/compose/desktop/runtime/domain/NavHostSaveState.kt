@@ -89,7 +89,7 @@ fun NavHostSaveStateProvider(
 }
 
 @Suppress("ACTUAL_WITHOUT_EXPECT") // https://youtrack.jetbrains.com/issue/KT-37316
-internal class WeakReference<T : Any> constructor(reference: T) {
+internal class WeakReference<T> constructor(reference: T?) {
     private val javaReference = java.lang.ref.WeakReference(reference)
     actual fun get(): T? = javaReference.get()
     actual fun clear() {

@@ -11,6 +11,7 @@ import androidx.compose.runtime.snapshots.SnapshotMutableState
 import androidx.core.bundle.Bundle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
@@ -18,6 +19,40 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import androidx.savedstate.savedState
 import java.io.Serializable
+
+/**
+ * 用于自定义compose component，比如fragment、dialog fragment等。
+ * 这些组件中的compose函数生命周期理应追随组件本身的生命周期，
+ * 因此需要覆盖掉composeContainer（顶层的Window函数）提供的LifecycleOwner
+ * @param lifecycleOwner 组件生命周期,用于覆盖掉composeContainer提供的LifecycleOwner
+ */
+@Composable
+fun ProvideAndroidCompositionLocalsForDialog(
+    id: String,
+    context: IContext?,
+    lifecycleOwner: LifecycleOwner,
+    viewModelStoreOwner: ViewModelStoreOwner,
+    savedStateRegistryOwner: SavedStateRegistryOwner,
+    content: @Composable () -> Unit,
+) {
+    val saveableStateRegistry = remember {
+        DisposableSaveableStateRegistry(id, savedStateRegistryOwner)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            saveableStateRegistry.dispose()
+        }
+    }
+    CompositionLocalProvider(
+        LocalContext provides (context ?: LocalContext.current),
+        LocalLifecycleOwner provides lifecycleOwner,
+        LocalViewModelStoreOwner provides viewModelStoreOwner,
+        LocalSaveableStateRegistry provides saveableStateRegistry,
+        LocalSavedStateRegistryOwner provides savedStateRegistryOwner,
+    ) {
+        content()
+    }
+}
 
 /**
  * 功能类似android中调用setContent时，其内部提供LocalSaveableStateRegistry。
@@ -39,6 +74,11 @@ import java.io.Serializable
  * "org.jetbrains.androidx.core:core-bundle:"1.1.0-alpha03"
  *
  * ```
+ * 我们activity的生命周期实际上观察composeContainer（顶层的Window函数）提供的Lifecycle，
+ * 因此我们不能覆盖掉LocalLifecycleOwner，
+ * 在这里只需要使用[ActivityLifecycleOwner]提供activity的lifecycleOwner即可
+ *
+ * @param activityLifecycleOwner activity的lifecycleOwner
  */
 @Composable
 fun ProvideAndroidCompositionLocals(
