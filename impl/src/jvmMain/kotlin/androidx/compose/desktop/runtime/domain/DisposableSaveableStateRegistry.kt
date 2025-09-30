@@ -11,11 +11,11 @@ import androidx.compose.runtime.snapshots.SnapshotMutableState
 import androidx.core.bundle.Bundle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import androidx.savedstate.savedState
 import java.io.Serializable
 
@@ -44,7 +44,7 @@ import java.io.Serializable
 fun ProvideAndroidCompositionLocals(
     id: String,
     context: IContext?,
-    lifecycleOwner: LifecycleOwner,
+    activityLifecycleOwner: LifecycleOwner,
     viewModelStoreOwner: ViewModelStoreOwner,
     savedStateRegistryOwner: SavedStateRegistryOwner,
     content: @Composable () -> Unit,
@@ -59,10 +59,10 @@ fun ProvideAndroidCompositionLocals(
     }
     CompositionLocalProvider(
         LocalContext provides (context ?: LocalContext.current),
-        LocalLifecycleOwner provides lifecycleOwner,
+        ActivityLifecycleOwner provides activityLifecycleOwner,
         LocalViewModelStoreOwner provides viewModelStoreOwner,
         LocalSaveableStateRegistry provides saveableStateRegistry,
-//        LocalSavedStateRegistryOwner provides savedStateRegistryOwner,
+        LocalSavedStateRegistryOwner provides savedStateRegistryOwner,
     ) {
         content()
     }

@@ -82,7 +82,7 @@ class ComposeViewHolder(private val component: IScreenComponent) : IComposableVi
         ProvideAndroidCompositionLocals(
             id = component.uuid,
             context = null,
-            lifecycleOwner = component,
+            activityLifecycleOwner = component,
             viewModelStoreOwner = component,
             savedStateRegistryOwner = component
         ) {

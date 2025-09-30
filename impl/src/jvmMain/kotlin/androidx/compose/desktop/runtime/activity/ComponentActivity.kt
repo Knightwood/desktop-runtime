@@ -238,38 +238,41 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
         alwaysOnTop: Boolean = false,
         onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
         onKeyEvent: (KeyEvent) -> Boolean = { false },
-        content: @Composable FrameWindowScope.() -> Unit
+        content: @Composable FrameWindowScope.() -> Unit,
     ) {
-        ProvideAndroidCompositionLocals(
-            id = uuid.toString(),
-            this,
-            this@ComponentActivity,
-            this@ComponentActivity,
-            this@ComponentActivity
-        ) {
-            Window(
-                onCloseRequest = if (closeActivity) ::finish else ::hide,
-                state = state,
-                visible = !windowHolder.isHidden.value,
-                title = title,
-                icon = icon,
-                undecorated = undecorated,
-                transparent = transparent,
-                resizable = resizable,
-                enabled = enabled,
-                focusable = focusable,
-                alwaysOnTop = alwaysOnTop,
-                onPreviewKeyEvent = onPreviewKeyEvent,
-                onKeyEvent = onKeyEvent,
-                content = {
-                    val lc: LifecycleOwner = LocalLifecycleOwner.current
-                    remember {
-                        lc.lifecycle.addObserver(this@ComponentActivity)
-                        windowHolder.composeWindow = this.window
-                    }
+        Window(
+            onCloseRequest = if (closeActivity) ::finish else ::hide,
+            state = state,
+            visible = !windowHolder.isHidden.value,
+            title = title,
+            icon = icon,
+            undecorated = undecorated,
+            transparent = transparent,
+            resizable = resizable,
+            enabled = enabled,
+            focusable = focusable,
+            alwaysOnTop = alwaysOnTop,
+            onPreviewKeyEvent = onPreviewKeyEvent,
+            onKeyEvent = onKeyEvent,
+            content = {
+                //这里的lifecycle是composeContainer的提供的
+                val lc: LifecycleOwner = LocalLifecycleOwner.current
+                remember {
+                    lc.lifecycle.addObserver(this@ComponentActivity)
+                    windowHolder.composeWindow = this.window
+                }
+
+                //适配compose 1.9，我们需要使用自己的状态存储恢复覆盖掉kmp内部的。
+                ProvideAndroidCompositionLocals(
+                    id = uuid.toString(),
+                    this@ComponentActivity,
+                    this@ComponentActivity,
+                    this@ComponentActivity,
+                    this@ComponentActivity
+                ) {
                     content()
                 }
-            )
-        }
+            }
+        )
     }
 }

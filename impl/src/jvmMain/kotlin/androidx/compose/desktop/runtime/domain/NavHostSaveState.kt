@@ -67,7 +67,7 @@ val LocalSavedStateRegistryOwner = staticCompositionLocalOf<SavedStateRegistryOw
  * ```
  *
  * @param viewModelStoreOwner 必须传，页面保存恢复状态，就指望着viewmodel呢。
- * @param lifecycleOwner 可选
+ * @param lifecycleOwner 可选。null:composeContainer的生命周期。
  * @param savedStateRegistryOwner 可选
  * @param content
  */

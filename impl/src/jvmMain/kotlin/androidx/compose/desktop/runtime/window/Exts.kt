@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LifecycleLogger(flag: String = "") {
+    //观察compose的生命周期
     val lc = LocalLifecycleOwner.current
 //    remember {
 //        application.scope.launch {
