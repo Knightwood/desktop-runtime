@@ -2,7 +2,7 @@ package androidx.compose.desktop.runtime.context
 
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.activity.ActivityManager
-import androidx.compose.desktop.runtime.activity.ActivityResult
+import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
 import androidx.compose.desktop.runtime.activity.Intent
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
@@ -22,24 +22,15 @@ open class ContextWrapper : IContext() {
     }
 
     override fun startActivity(
-        cls: Class<out Activity>,
-        data: Any?
-    ) {
-        mBase.startActivity(cls, data)
-    }
-
-    override fun startActivity(
-        cls: Class<out Activity>,
         intent: Intent
     ) {
-        mBase.startActivity(cls, intent)
+        mBase.startActivity(intent)
     }
 
     override fun startActivityForResult(
-        cls: Class<out Activity>,
         intent: Intent,
-        block: ActivityResult
+        block: ActivityResultCallback
     ) {
-        mBase.startActivityForResult(cls, intent, block)
+        mBase.startActivityForResult(intent, block)
     }
 }

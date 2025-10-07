@@ -1,10 +1,9 @@
-import com.vanniktech.maven.publish.SonatypeHost
-
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.vanniktech.mavenPublish)
+//    alias(libs.plugins.kotlin.serialization)
 }
 
 val groupId = "com.github.knightwood"
@@ -44,6 +43,8 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel.savestate)
             implementation(libs.androidx.savestate)
             implementation(libs.core.bundle)
+
+//            implementation(libs.kotlin.serialization)
 
             // SLF4J
             implementation("org.slf4j:slf4j-api:2.0.15")

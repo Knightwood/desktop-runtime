@@ -8,7 +8,7 @@ import androidx.lifecycle.LifecycleOwner
 object ActivityLifecycleOwner {
     private val LocalLifecycleOwner = compositionLocalOf<LifecycleOwner?> { null }
 
-    public val current: LifecycleOwner?
+    public val current: LifecycleOwner
         @Composable get() = LocalLifecycleOwner.current ?: throw IllegalStateException(
             "CompositionLocal LifecycleOwner not present"
         )

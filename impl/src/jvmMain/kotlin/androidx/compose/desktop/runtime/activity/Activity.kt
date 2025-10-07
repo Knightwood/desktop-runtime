@@ -3,6 +3,8 @@
 package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
+import androidx.compose.desktop.runtime.activity.result.ActivityResult
+import androidx.compose.desktop.runtime.activity.result.ObservableFlow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.painter.Painter
@@ -18,8 +20,11 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.*
 import androidx.savedstate.SavedState
-import kotlinx.coroutines.*
-import java.util.UUID
+import com.github.knightwood.slf4j.kotlin.logFor
+import com.github.knightwood.slf4j.kotlin.logger
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlin.jvm.java
 
 /**
  * 启动模式，默认为标准模式，即多个实例可以同时存在。
@@ -27,10 +32,6 @@ import java.util.UUID
 enum class LaunchMode {
     SINGLE_INSTANCE,
     STANDARD,
-}
-
-fun interface ActivityResult {
-    fun invoke(resultCode: Int, data: Any?)
 }
 
 /**
@@ -80,15 +81,14 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      *
      * 如果启动模式为单例，又没指定uuid，则使用目标activity class的canonicalName
      */
-    var uuid: String = UUID.randomUUID().toString()
-        internal set
+    val uuid: String
+        get() = intent.uuid
 
     /**
      * 用于保存和恢复activity的状态
      */
-    val bundle
-        get() = activityManager().obtainBundle(uuid)
-    private var result: ActivityResult? = null
+    val savedState
+        get() = activityManager().obtainSaveState(uuid)
 
     /**
      * activity实现了IContext接口
@@ -114,20 +114,15 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     internal fun attach(
         context: IContext,
         intent: Intent,
-        block: ActivityResult?,
     ) {
         mBase = context
         this.intent = intent
-        intent.uuid?.let {
-            this.uuid = it
-        }
-        this.result = block
         if (!this::windowHolder.isInitialized) {
             windowHolder = DxWindowHolder(this, windowManager(), intent.multiApplication)
         }
         ActivityManager.register(uuid, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-        onCreate(activityManager().obtainBundleNullable(uuid))
+        onCreate(activityManager().obtainSavestateNullable(uuid))
     }
 
     /**
@@ -220,7 +215,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     @CallSuper
     open fun onDestroy() {
-        onSaveInstanceState(bundle)
+        onSaveInstanceState(savedState)
 //        val saved = window.saveState()
 //        if (saved != null) {
 //            activityManager().setBundle(uuid, saved)
@@ -228,6 +223,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         finished = true
         ActivityManager.remove(uuid)
         windowHolder.release()
+        internalResultFlow.clear()
     }
 
     /**
@@ -256,14 +252,24 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         isHidden = false
     }
 
+    //<editor-fold desc="result callback">
+    internal var internalResultFlow: ObservableFlow<ActivityResult> = ObservableFlow()
+
     /**
-     * 设置返回数据
-     *
-     * @param resultCode 结果码，[SUCCESS]表示成功，[FAILED]表示失败
+     * @param resultCode 结果码，[Activity.SUCCESS]表示成功，[Activity.FAILED]表示失败
      */
-    open fun setResult(resultCode: Int, data: Any? = null) {
-        result?.invoke(resultCode, data)
+    open fun setResult(resultCode: Int, data: Any) {
+        internalResultFlow.setValue(ActivityResult(resultCode, data))
     }
+
+    /**
+     * @param resultCode 结果码，[Activity.SUCCESS]表示成功，[Activity.FAILED]表示失败
+     */
+    open fun setResult(resultCode: Int) {
+        internalResultFlow.setValue(ActivityResult(resultCode, null))
+    }
+
+    //</editor-fold>
 
     /**
      * 创建一个ComposeView，并绑定生命周期。
@@ -329,3 +335,5 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         const val FAILED = 0
     }
 }
+
+private val logger = logFor("tty1-activity")

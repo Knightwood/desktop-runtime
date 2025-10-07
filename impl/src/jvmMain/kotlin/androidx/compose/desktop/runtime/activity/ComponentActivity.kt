@@ -4,8 +4,6 @@ package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
 import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocals
-import androidx.compose.desktop.runtime.domain.merge
-import androidx.compose.desktop.runtime.domain.toMap
 import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -69,6 +67,11 @@ import kotlin.reflect.KClass
  *
  *      override fun onCreate() {
  *          super.onCreate()
+ *          ComposeView(closeActivity = true) {
+ *                 MaterialTheme {
+ *                     // compose...
+ *                 }
+ *          }
  *          logger.info("onCreate：vm参数：" + vm.i)
  *          logger.info("onCreate：vm：" + vm)
  *      }
@@ -149,7 +152,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
 
     @CallSuper
     override fun onCreate(savedInstanceState: SavedState?) {
-        savedStateRegistryController.performRestore(bundle)
+        savedStateRegistryController.performRestore(savedState)
         super.onCreate(savedInstanceState)
     }
 
@@ -203,7 +206,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
     override fun onDestroy() {
         super.onDestroy()
         if (intent.clearSaveState) {
-            activityManager().clearBundle(uuid)
+            activityManager().clearSaveState(uuid)
         }
     }
 
@@ -213,7 +216,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
      * @param state 窗口状态，默认为[rememberWindowState]
      * @param title 窗口标题，默认为"Untitled"
      * @param icon 窗口图标，默认为null
-     * @param closeActivity 点击窗口关闭按钮时，是否关闭Activity，默认为false
+     * @param closeActivity 点击窗口关闭按钮时，是否关闭Activity。false:点击关闭按钮时[hide];true:点击关闭按钮时[finish]
      * @param undecorated 是否无边框，默认为false
      * @param transparent 是否透明，默认为false
      * @param resizable 是否可resize，默认为true

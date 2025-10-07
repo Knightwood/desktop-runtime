@@ -1,29 +1,43 @@
 package androidx.compose.desktop.runtime.activity
 
+import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
 import java.util.UUID
+import kotlin.properties.Delegates
 
+class Intent {
+    /*
+    * 从哪来
+    * 如果不是从activity启动的，则此字段为null
+    */
+    var from: Class<out Any>? = null
+        internal set
 
-data class Intent(
-    var launchMode: LaunchMode = LaunchMode.STANDARD,
-    var data: Any? = null
-) {
+    /* 被启动的activity */
+    var targetActivity: Class<out Activity> by Delegates.notNull()
+        internal set
+
+    /* 启动模式 */
+    var launchMode: LaunchMode = LaunchMode.STANDARD
+
+    /* 携带的数据 */
+    @PublishedApi
+    internal var mData: Any? = null
+
     /**
      * 是否在销毁activity时销毁保存的状态。
-     * desktop端并没有重建activity保存状态的需求，ComponentActivity实现目的在于兼容android组件。
      * 如果存在activity启动后恢复上一次activity关闭时保存数据的需求，把此字段置为false。
      * 否则，activity销毁时也会连带着销毁存储的状态。
      */
     var clearSaveState: Boolean = true
 
     /**
-     * 如果不为null，则启动的activity使用此uuid标记自己。
-     * 如果不为null，下一次恢复数据时将使用此uuid读取保存的数据。
+     * 被启动的activity使用此uuid标记自己，且使用此uuid读取上次关闭时保存的数据。
      *
      * 如果启动模式为单例，又没指定uuid，则使用目标activity class的canonicalName
      *
      * 可是，实现状态保存和恢复，在桌面端真的有意义吗？
      */
-    var uuid: String? = null
+    var uuid: String = UUID.randomUUID().toString()
 
     /**
      * If true, the activity will not be attached to current application scope
@@ -61,8 +75,36 @@ data class Intent(
      */
     var multiApplication: Boolean = false
 
-    companion object {
-        infix operator fun LaunchMode.plus(data: Any?) = Intent(this, data)
+    constructor()
+    constructor(from: Any, to: Class<out Activity>, data: Any? = null) {
+        this.from = from::class.java
+        this.targetActivity = to
+        this.mData = data
+    }
 
+    constructor(to: Class<out Activity>, data: Any? = null) {
+        this.from = null
+        this.targetActivity = to
+        this.mData = data
+    }
+
+    fun configuration(block: Intent.() -> Unit): Intent {
+        block.invoke(this)
+        return this
+    }
+
+    /**
+     * 读取Intent中保存的数据，如果没有数据或者类型不匹配，返回null
+     *
+     * @param T
+     * @return
+     */
+    inline fun <reified T> getData(): T? {
+        if (mData == null) return null
+        return mData as? T
+    }
+
+    fun putData(data: Any?) {
+        mData = data
     }
 }

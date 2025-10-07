@@ -8,48 +8,55 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
 import org.jetbrains.skiko.MainUIDispatcher
 
-interface IBundleHolder {
-    fun obtainBundle(uuid: String): SavedState
-    fun obtainBundleNullable(uuid: String): SavedState?
-    fun clearBundle(uuid: String)
+interface ISaveStateHolder {
+    fun obtainSaveState(uuid: String): SavedState
+    fun obtainSavestateNullable(uuid: String): SavedState?
+    fun clearSaveState(uuid: String)
     fun clear()
-    fun setBundle(uuid: String, bundle: SavedState)
+    fun setSaveState(uuid: String, savedState: SavedState)
 }
 
-class BundleHolder : IBundleHolder {
+class SaveStateHolder : ISaveStateHolder {
     /**
      * 存储SaveState的bundle
      */
-    val bundleSaverMap: MutableMap<String, SavedState> = mutableMapOf()
+    val saveStateSaverMap: MutableMap<String, SavedState> = mutableMapOf()
 
-    override fun obtainBundle(uuid: String): SavedState {
-        return bundleSaverMap.getOrPut(uuid) { savedState() }
+    override fun obtainSaveState(uuid: String): SavedState {
+        return saveStateSaverMap.getOrPut(uuid) { savedState() }
     }
 
-    override fun obtainBundleNullable(uuid: String): SavedState? {
-        return bundleSaverMap[uuid]
+    override fun obtainSavestateNullable(uuid: String): SavedState? {
+        return saveStateSaverMap[uuid]
     }
 
-    override fun clearBundle(uuid: String) {
-        bundleSaverMap.remove(uuid)
+    override fun clearSaveState(uuid: String) {
+        saveStateSaverMap.remove(uuid)
     }
 
     override fun clear() {
-        bundleSaverMap.clear()
+        saveStateSaverMap.clear()
     }
 
-    override fun setBundle(uuid: String, bundle: SavedState) {
-        bundleSaverMap[uuid] = bundle
+    override fun setSaveState(uuid: String, savedState: SavedState) {
+        saveStateSaverMap[uuid] = savedState
     }
 }
 
 /**
  * 管理所有的activity
  */
-object ActivityManager : IBundleHolder by BundleHolder() {
+object ActivityManager : ISaveStateHolder by SaveStateHolder() {
     const val NAME = "ActivityManager"
     val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
+
+    // activity map
     private val activityMap: MutableMap<String, Activity> = mutableMapOf()
+
+    //任务栈
+    internal val stack = mutableListOf<Activity>()
+    val activityStack: List<Activity> get() = stack
+
 
     /**
      * 好吧，目前没有可实现的
@@ -71,10 +78,12 @@ object ActivityManager : IBundleHolder by BundleHolder() {
 
     fun register(uuid: String, activity: Activity) {
         activityMap[uuid] = activity
+        stack.add(activity)
     }
 
     fun remove(uuid: String) {
         activityMap.remove(uuid)
+        stack.remove(activityMap[uuid])
     }
 
 
@@ -83,6 +92,7 @@ object ActivityManager : IBundleHolder by BundleHolder() {
             it.finish()
         }
         activityMap.clear()
+        stack.clear()
     }
 
 

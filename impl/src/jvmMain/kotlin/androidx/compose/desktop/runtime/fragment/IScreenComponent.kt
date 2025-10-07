@@ -1,7 +1,7 @@
 package androidx.compose.desktop.runtime.fragment
 
 import androidx.annotation.CallSuper
-import androidx.compose.desktop.runtime.activity.IBundleHolder
+import androidx.compose.desktop.runtime.activity.ISaveStateHolder
 import androidx.compose.desktop.runtime.domain.WeakReference
 import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.lifecycle.*
@@ -39,7 +39,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
      * uuid用于恢复bundle数据
      */
     var uuid: String = UUID.randomUUID().toString()
-    lateinit var bundleHolder: IBundleHolder
+    lateinit var bundleHolder: ISaveStateHolder
 
     /**
      * 是否在结束后清除bundle，大多数时候我们不需要恢复状态特性，因此默认为true。
@@ -93,10 +93,10 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     /**
      * 在生成实例后，调用此方法开始此类的生命周期流程
      */
-    fun prepare(parentLifecycle: Lifecycle? = null, bundleHolder: IBundleHolder) {
+    fun prepare(parentLifecycle: Lifecycle? = null, bundleHolder: ISaveStateHolder) {
         this.bundleHolder = bundleHolder
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-        onCreate(bundleHolder.obtainBundleNullable(uuid))
+        onCreate(bundleHolder.obtainSavestateNullable(uuid))
         parentLifecycle?.let {
             this.parentLifecycle = WeakReference(it)
             it.addObserver(this)
@@ -142,9 +142,9 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     @CallSuper
     open fun onDestroy() {
         if (clearBundle) {
-            bundleHolder.clearBundle(uuid)
+            bundleHolder.clearSaveState(uuid)
         } else {
-            onSaveInstanceState(bundleHolder.obtainBundle(uuid))
+            onSaveInstanceState(bundleHolder.obtainSaveState(uuid))
         }
         lifecycleScope.launch {
             released.emit(true)

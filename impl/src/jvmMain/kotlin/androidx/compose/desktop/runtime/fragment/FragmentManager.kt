@@ -1,7 +1,7 @@
 package androidx.compose.desktop.runtime.fragment
 
-import androidx.compose.desktop.runtime.activity.BundleHolder
-import androidx.compose.desktop.runtime.activity.IBundleHolder
+import androidx.compose.desktop.runtime.activity.SaveStateHolder
+import androidx.compose.desktop.runtime.activity.ISaveStateHolder
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.github.knightwood.slf4j.kotlin.kLogger
@@ -27,7 +27,7 @@ class FragmentManager() : IScreenComponentManager {
     val logger = logFor("组件管理")
     private lateinit var lifecycleOwner: LifecycleOwner
     private val stackManager: ScreenComponentStackManager = ScreenComponentStackManager()
-    private val bundleHolder: IBundleHolder by lazy { BundleHolder() }
+    private val bundleHolder: ISaveStateHolder by lazy { SaveStateHolder() }
 
     override fun provideLifeCycle(lifecycleOwner: LifecycleOwner) {
         this.lifecycleOwner = lifecycleOwner

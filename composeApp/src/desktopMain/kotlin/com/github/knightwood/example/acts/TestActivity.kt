@@ -35,33 +35,41 @@ open class TestActivity : Activity() {
                     Column {
                         Text(text = "rememberSavable测试")
                         Button(onClick = {
-                            val intent = Intent()
+                            val intent = Intent(this@TestActivity, StateTestActivity::class.java)
                             //因为大多数时候我们不需要保存恢复数据，clearSaveState默认为true
                             //但我们这里希望保存恢复数据，因此需要设置clearSaveState为false
                             intent.clearSaveState = false
                             //需要注意，activity取回保存起来的数据依靠uuid，因此需要在这里设置uuid
                             intent.uuid = "11"
-                            startActivity(StateTestActivity::class.java, intent)
+                            startActivity(intent)
                         }) {
                             Text("点击启动状态测试页面")
                         }
 
                         HorizontalDivider()
                         Button(onClick = {
-                            val intent = Intent()
-                            intent.clearSaveState = false
-                            intent.uuid = "12"
-                            startActivity(VMTestActivity::class.java, intent)
+                            val intent = Intent(
+                                this@TestActivity,
+                                VMTestActivity::class.java
+                            ).configuration {
+                                clearSaveState = false
+                                uuid = "12"
+                                putData("randoms" to Random.nextInt(12, 20))
+                            }
+                            startActivityForResult(intent) { result, data ->
+                                logger.info("result: $result, data: $data")
+                            }
                         }) {
                             Text("点击启动vm测试页面")
                         }
 
                         HorizontalDivider()
                         Button(onClick = {
-                            val intent = Intent()
+                            val intent =
+                                Intent(this@TestActivity, TestFragmentActivity::class.java)
                             intent.clearSaveState = false
                             intent.uuid = "13"
-                            startActivity(TestFragmentActivity::class.java, intent)
+                            startActivity(intent)
                         }) {
                             Text("点击启动fragment测试页面")
                         }

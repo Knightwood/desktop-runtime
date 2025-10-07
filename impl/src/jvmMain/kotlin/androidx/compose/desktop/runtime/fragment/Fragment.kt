@@ -1,7 +1,6 @@
 package androidx.compose.desktop.runtime.fragment
 
-import androidx.compose.desktop.runtime.activity.IBundleHolder
-import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocals
+import androidx.compose.desktop.runtime.activity.ISaveStateHolder
 import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocalsForDialog
 import androidx.compose.desktop.runtime.window.ComposableContent
 import androidx.compose.runtime.Composable
@@ -38,7 +37,7 @@ open class Fragment() : IScreenComponent() {
         onCreateView()
     }
 
-    fun attach(parentLifecycle: LifecycleOwner, bundleHolder: IBundleHolder) {
+    fun attach(parentLifecycle: LifecycleOwner, bundleHolder: ISaveStateHolder) {
         prepare(parentLifecycle.lifecycle, bundleHolder)//先初始化，然后监听父级的生命周期进行同步
     }
 

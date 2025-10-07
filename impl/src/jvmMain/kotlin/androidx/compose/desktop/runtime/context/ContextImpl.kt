@@ -1,6 +1,7 @@
 package androidx.compose.desktop.runtime.context
 
 import androidx.compose.desktop.runtime.activity.*
+import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.core.ServiceHolder
 import androidx.compose.desktop.runtime.core.applicationInternal
@@ -9,6 +10,7 @@ import androidx.compose.desktop.runtime.window.WindowManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 open class ContextImpl() : IContext() {
     override val application: Application
@@ -26,32 +28,27 @@ open class ContextImpl() : IContext() {
     }
 
     override fun startActivity(
-        cls: Class<out Activity>,
-        intent: Intent
+        intent: Intent,
     ) {
-        startActivityInner(cls, intent, null)
+        startActivityInner(intent)
     }
 
     override fun startActivityForResult(
-        cls: Class<out Activity>,
         intent: Intent,
-        block: ActivityResult
+        block: ActivityResultCallback,
     ) {
-        startActivityInner(cls, intent, block)
+        startActivityInner(intent, block)
     }
 
     /**
      * 在[ActivityManager.scope]中生成并运行activity，如此，activity就跑在ui（主）线程上
      */
     private fun startActivityInner(
-        cls: Class<out Activity>,
         intent: Intent,
-        block: ActivityResult?
+        callback: ActivityResultCallback? = null
     ) {
         if (intent.launchMode == LaunchMode.SINGLE_INSTANCE) {
-            if (intent.uuid == null) {
-                intent.uuid = cls.canonicalName
-            }
+            intent.uuid = intent.targetActivity.canonicalName
             val old = activityManager().get(intent.uuid)
             if (old != null) {
                 old.onReStart(intent)
@@ -59,8 +56,15 @@ open class ContextImpl() : IContext() {
             }
         }
         activityManager().scope.launch {
-            val activity = cls.getDeclaredConstructor().newInstance()
-            activity.attach(this@ContextImpl, intent, block)
+            val activity = intent.targetActivity.getDeclaredConstructor().newInstance()
+            activity.attach(this@ContextImpl, intent)
+            if (callback != null) {
+                launch(Dispatchers.Default) {
+                    activity.internalResultFlow.observe {
+                        callback.invoke(it.resultCode, it.data)
+                    }
+                }
+            }
         }
     }
 }

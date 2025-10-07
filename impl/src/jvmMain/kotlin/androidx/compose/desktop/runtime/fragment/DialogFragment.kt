@@ -1,7 +1,7 @@
 package androidx.compose.desktop.runtime.fragment
 
-import androidx.compose.desktop.runtime.activity.BundleHolder
-import androidx.compose.desktop.runtime.activity.IBundleHolder
+import androidx.compose.desktop.runtime.activity.SaveStateHolder
+import androidx.compose.desktop.runtime.activity.ISaveStateHolder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.painter.Painter
@@ -10,7 +10,6 @@ import androidx.compose.ui.window.DialogState
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.DialogWindowScope
 import androidx.compose.ui.window.rememberDialogState
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.kLogger
 
@@ -93,10 +92,10 @@ abstract class DialogFragment : Fragment() {
         fun <T : DialogFragment> makeDialog(
             cls: Class<T>,
             lifecycle: LifecycleOwner,
-            iBundleHolder: IBundleHolder = BundleHolder()
+            iSaveStateHolder: ISaveStateHolder = SaveStateHolder()
         ): T {
             val fragment = cls.getDeclaredConstructor().newInstance()
-            fragment.attach(lifecycle, iBundleHolder)
+            fragment.attach(lifecycle, iSaveStateHolder)
             return fragment
         }
     }

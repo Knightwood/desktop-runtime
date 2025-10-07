@@ -32,7 +32,8 @@ open class Application : ContextWrapper(), LifecycleOwner {
     /**
      * 此协程最终会随着进程结束而结束，不必担心生命周期
      */
-    val scope: CoroutineScope = CoroutineScope(Dispatchers.Default) + SupervisorJob() + CoroutineName("Application")
+    val scope: CoroutineScope =
+        CoroutineScope(Dispatchers.Default) + SupervisorJob() + CoroutineName("Application")
 
     /**
      * 若为true，则onCreate将使用协程初始化所有的aware逻辑块
@@ -116,10 +117,13 @@ open class Application : ContextWrapper(), LifecycleOwner {
     /**
      * 启动MainActivity，第一个显示出来的窗口
      */
-    internal fun startMainActivity(mainActivity: Class<out Activity>, intentBuilder: (Intent.() -> Unit)?) {
-        val intent = Intent()
+    internal fun startMainActivity(
+        mainActivity: Class<out Activity>,
+        intentBuilder: (Intent.() -> Unit)?
+    ) {
+        val intent = Intent(mainActivity)
         intentBuilder?.invoke(intent)
-        startActivity(mainActivity, intent)//这里会运行在协程，注意调用时机
+        startActivity(intent)//这里会运行在协程，注意调用时机
         windowManager().prepare()
     }
     //</editor-fold>

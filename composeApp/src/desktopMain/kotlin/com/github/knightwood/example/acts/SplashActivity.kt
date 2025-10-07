@@ -10,6 +10,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.desktop.runtime.activity.Activity
+import androidx.compose.desktop.runtime.activity.Intent
 import androidx.savedstate.SavedState
 import kotlinx.coroutines.delay
 
@@ -19,11 +20,14 @@ class SplashActivity : Activity() {
         setContent {
             LaunchedEffect(Unit) {
                 delay(600) // 延迟500毫秒
-                startActivity(TestActivity::class.java,)
+                startActivity(Intent(this@SplashActivity, TestActivity::class.java))
                 finish()
             }
             val state: WindowState =
-                rememberWindowState(position = WindowPosition.Aligned(Alignment.Center), size = DpSize(300.dp, 300.dp))
+                rememberWindowState(
+                    position = WindowPosition.Aligned(Alignment.Center),
+                    size = DpSize(300.dp, 300.dp)
+                )
             ComposeView(
                 onCloseRequest = {
                     finish()

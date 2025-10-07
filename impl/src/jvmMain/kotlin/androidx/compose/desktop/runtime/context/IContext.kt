@@ -1,7 +1,7 @@
 package androidx.compose.desktop.runtime.context
 
 import androidx.compose.desktop.runtime.activity.*
-import androidx.compose.desktop.runtime.activity.Intent.Companion.plus
+import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -26,22 +26,13 @@ abstract class IContext {
     open fun exitApp() {}
 
     open fun startActivity(
-        cls: Class<out Activity>,
-        data: Any?
-    ) {
-        startActivity(cls, LaunchMode.STANDARD + data)
-    }
-
-    open fun startActivity(
-        cls: Class<out Activity>,
-        intent: Intent = LaunchMode.STANDARD + null,
+        intent: Intent ,
     ) {
     }
 
     open fun startActivityForResult(
-        cls: Class<out Activity>,
-        intent: Intent = LaunchMode.STANDARD + null,
-        block: ActivityResult
+        intent: Intent,
+        block: ActivityResultCallback
     ) {
     }
 }
