@@ -113,24 +113,22 @@ class Fragment1 : Fragment() {
         clearBundle = false
     }
 
-    override fun onCreateView(): IComposableViewHolder {
-        return ComposeViewHolder(this).apply {
-            setContent {
-                val text1 = rememberSaveable() {
-                    mutableStateOf("rememberSaveable")
-                }
-                val text2 = remember() {
-                    mutableStateOf("remember")
-                }
-                MaterialTheme {
-                    Column {
-                        Text("界面随机数：${text1.value}")
-                        Text("界面随机数：${text2.value}")
-                        SampleButton("生成随机数") {
-                            val i = Random.nextInt(0, 11)
-                            text1.value = "rememberSaveable $i"
-                            text2.value = "remember $i"
-                        }
+    override fun onCreateView(): AbstractComposableView {
+        return setContent {
+            val text1 = rememberSaveable() {
+                mutableStateOf("rememberSaveable")
+            }
+            val text2 = remember() {
+                mutableStateOf("remember")
+            }
+            MaterialTheme {
+                Column {
+                    Text("界面随机数：${text1.value}")
+                    Text("界面随机数：${text2.value}")
+                    SampleButton("生成随机数") {
+                        val i = Random.nextInt(0, 11)
+                        text1.value = "rememberSaveable $i"
+                        text2.value = "remember $i"
                     }
                 }
             }
@@ -140,17 +138,16 @@ class Fragment1 : Fragment() {
 
 
 class TestDialog : DialogFragment() {
-    override fun onCreateView(): IComposableViewHolder {
-        return ComposeViewHolder(this).apply {
-            setContent {
-                Dialog() {
-                    MaterialTheme {
-                        Column {
-                            Text("dialog")
-                        }
+    override fun onCreateView(): AbstractComposableView {
+        return setContent {
+            Dialog() {
+                MaterialTheme {
+                    Column {
+                        Text("dialog")
                     }
                 }
             }
         }
     }
+
 }
