@@ -9,21 +9,21 @@ import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.*
 import java.util.Collections
 
-interface IScreenComponentManager {
+interface IFragmentComponentManager {
     fun provideLifeCycle(lifecycleOwner: LifecycleOwner)
     fun <T : Fragment> register(cls: Class<T>, key: String? = null): Fragment
     fun unregister(key: String)
     fun <T : Fragment> unregister(component: Fragment)
-    fun screen(key: String): Fragment
-    fun clearScreenComponent()
+    fun fragment(key: String): Fragment
+    fun release()
 
 }
 
-inline fun <reified T : Fragment> IScreenComponentManager.register(key: String? = null): Fragment {
+inline fun <reified T : Fragment> IFragmentComponentManager.register(key: String? = null): Fragment {
     return register(T::class.java, key)
 }
 
-class FragmentManager() : IScreenComponentManager {
+class FragmentManager() : IFragmentComponentManager {
     val logger = logFor("组件管理")
     private lateinit var lifecycleOwner: LifecycleOwner
     private val stackManager: ScreenComponentStackManager = ScreenComponentStackManager()
@@ -61,11 +61,11 @@ class FragmentManager() : IScreenComponentManager {
         stackManager.unregister<T>(component)
     }
 
-    override fun screen(key: String): Fragment {
+    override fun fragment(key: String): Fragment {
         return stackManager.get(key)
     }
 
-    override fun clearScreenComponent() {
+    override fun release() {
         stackManager.map.clear()
         bundleHolder.clear()
     }

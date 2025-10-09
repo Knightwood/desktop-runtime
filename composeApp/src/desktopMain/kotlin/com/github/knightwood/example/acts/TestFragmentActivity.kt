@@ -26,7 +26,7 @@ class TestFragmentActivity : FragmentActivity() {
         setContent {
             ComposeView() {
                 var screen1 by remember {
-                    mutableStateOf<Fragment?>(screen("123"))
+                    mutableStateOf<Fragment?>(fragment("123"))
                 }
                 MaterialTheme {
                     Column {
@@ -48,9 +48,9 @@ class TestFragmentActivity : FragmentActivity() {
 
                         HorizontalDivider()
                         Text("fragment的显示隐藏")
-                        screen("124")()
+                        fragment("124")()
                         SampleButton("显示隐藏") {
-                            screen("124").run {
+                            fragment("124").run {
                                 if (mVisibility.value) {
                                     hide()
                                 } else {
@@ -63,7 +63,7 @@ class TestFragmentActivity : FragmentActivity() {
                         Text("测试dialog fragment")
                         Text("关闭弹窗即隐藏，点击销毁后无法再显示")
                         val dialog by remember {
-                            mutableStateOf(screen("dialog1"))
+                            mutableStateOf(fragment("dialog1"))
                         }
                         dialog()
                         Row {
