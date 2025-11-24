@@ -7,6 +7,7 @@ import androidx.jvm.system.core.keepDirExist
 import androidx.jvm.system.process.ProcessLocker
 import androidx.jvm.system.utils.SystemProperty
 import ch.qos.logback.classic.LoggerContext
+import com.github.knightwood.example.components.AppStateHolder
 import org.slf4j.LoggerFactory
 import java.util.*
 
@@ -21,10 +22,12 @@ class MainApplication : Application() {
             appName = "测试"
             isDevMode = false
         }
-        val lockfile = AppPathProvider.provider.internalConfigDirPath
-            .keepDirExist()
-            .resolve("lockfile.lock").toNioPath()
-        ProcessLocker.lock(lockfile)
+//        val lockfile = AppPathProvider.provider.internalConfigDirPath
+//            .keepDirExist()
+//            .resolve("lockfile.lock").toNioPath()
+//        ProcessLocker.lock(lockfile)
+        AppStateHolder.registerExitAction { exitApp() }
+        AppStateHolder.probe(::exitApp)
 //        AppPathProvider.provider.print()
         testPath()
     }
@@ -53,6 +56,7 @@ class MainApplication : Application() {
         // 程序结束时，手动刷新日志
         val context = LoggerFactory.getILoggerFactory() as LoggerContext
         context.stop() // 确保所有日志都被刷新
+        ProcessLocker.unlock()
     }
 
     companion object {

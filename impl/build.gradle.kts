@@ -10,7 +10,7 @@ val groupId = "com.github.knightwood"
 val artifactId = "desktop-runtime"
 val githubUrl="https://github.com/Knightwood/desktop-runtime"
 group = groupId
-version = "1.1.0"
+version = "1.2.0"
 
 kotlin {
     // 启用 context-receivers 特性
@@ -42,18 +42,16 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.androidx.lifecycle.viewmodel.savestate)
             implementation(libs.androidx.savestate)
-            implementation(libs.core.bundle)
-
 //            implementation(libs.kotlin.serialization)
-
             // SLF4J
             implementation("org.slf4j:slf4j-api:2.0.15")
             implementation("com.github.knightwood:slf4j-api-kotlin:0.0.7")
-            implementation(libs.okio)
-            implementation(project(":system-impl:spi"))
         }
 
         jvmMain.dependencies {
+            implementation(libs.core.bundle)
+            implementation(libs.okio)
+            implementation(project(":system-impl:spi"))
             implementation(libs.kotlin.coroutines.swing)
             implementation(compose.desktop.currentOs){
                 exclude("org.jetbrains.compose.material")

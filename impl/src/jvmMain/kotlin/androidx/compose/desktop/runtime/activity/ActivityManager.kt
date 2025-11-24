@@ -8,14 +8,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
 import org.jetbrains.skiko.MainUIDispatcher
 
-interface ISaveStateHolder {
-    fun obtainSaveState(uuid: String): SavedState
-    fun obtainSavestateNullable(uuid: String): SavedState?
-    fun clearSaveState(uuid: String)
-    fun clear()
-    fun setSaveState(uuid: String, savedState: SavedState)
-}
-
 class SaveStateHolder : ISaveStateHolder {
     /**
      * 存储SaveState的bundle

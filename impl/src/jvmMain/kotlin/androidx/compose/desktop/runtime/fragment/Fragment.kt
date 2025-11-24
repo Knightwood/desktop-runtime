@@ -1,6 +1,7 @@
 package androidx.compose.desktop.runtime.fragment
 
 import androidx.compose.desktop.runtime.activity.ISaveStateHolder
+import androidx.compose.desktop.runtime.core.IScreenComponent
 import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocalsForDialog
 import androidx.compose.desktop.runtime.window.ComposableContent
 import androidx.compose.runtime.Composable

@@ -1,11 +1,21 @@
-package androidx.compose.desktop.runtime.fragment
+package androidx.compose.desktop.runtime.core
 
 import androidx.annotation.CallSuper
 import androidx.compose.desktop.runtime.activity.ISaveStateHolder
-import androidx.compose.desktop.runtime.domain.WeakReference
 import androidx.compose.desktop.runtime.viewmodel.createVM
-import androidx.lifecycle.*
-import androidx.lifecycle.Lifecycle.Event.*
+import androidx.lifecycle.HasDefaultViewModelProviderFactory
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.SAVED_STATE_REGISTRY_OWNER_KEY
+import androidx.lifecycle.VIEW_MODEL_STORE_OWNER_KEY
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.enableSavedStateHandles
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.savedstate.SavedState
@@ -16,9 +26,9 @@ import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import java.util.*
+import java.lang.ref.WeakReference
+import java.util.UUID
 import kotlin.reflect.KClass
-
 
 /**
  * 提供了生命周期、ViewModelStoreOwner、SavedStateRegistryOwner等基础组件
@@ -72,7 +82,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
 
     @Suppress("LeakingThis")
     private val savedStateRegistryController: SavedStateRegistryController =
-        SavedStateRegistryController.create(this)
+        SavedStateRegistryController.Companion.create(this)
 
     override val savedStateRegistry: SavedStateRegistry
         get() = savedStateRegistryController.savedStateRegistry
@@ -110,7 +120,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
      */
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
         kLogger.info { "parent lifecycle changed: $event" }
-        if (event == ON_DESTROY) {
+        if (event == Lifecycle.Event.ON_DESTROY) {
             endLife()
             onDestroy()
         }
@@ -129,7 +139,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     open fun onCreate(savedInstanceState: SavedState?) {
 //        logger.info("恢复状态，uuid:$uuid")
         savedStateRegistryController.performRestore(savedInstanceState)
-        lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
     }
 
@@ -163,7 +173,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
      */
     fun release() {
         onDestroy()//必须要在同步生命周期前调用，否则lifecycleScope会结束，导致无法正常释放
-        syncLife(ON_DESTROY)
+        syncLife(Lifecycle.Event.ON_DESTROY)
         endLife()
     }
 
