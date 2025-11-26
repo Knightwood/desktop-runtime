@@ -76,16 +76,31 @@ class Intent {
     var multiApplication: Boolean = false
 
     constructor()
-    constructor(from: Any, to: Class<out Activity>, data: Any? = null) {
-        this.from = from::class.java
+
+    constructor(
+        to: Class<out Activity>,
+        data: Any? = null,
+        launchMode: LaunchMode = LaunchMode.STANDARD,
+    ) {
         this.targetActivity = to
         this.mData = data
+        this.launchMode = launchMode
     }
 
-    constructor(to: Class<out Activity>, data: Any? = null) {
-        this.from = null
+    constructor(
+        from: Any,
+        to: Class<out Activity>,
+        data: Any? = null,
+        launchMode: LaunchMode = LaunchMode.STANDARD,
+    ) {
+        if (from is Class<*>) {
+            this.from = from
+        } else {
+            this.from = from::class.java
+        }
         this.targetActivity = to
         this.mData = data
+        this.launchMode = launchMode
     }
 
     fun configuration(block: Intent.() -> Unit): Intent {

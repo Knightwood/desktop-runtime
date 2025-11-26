@@ -32,6 +32,11 @@ import kotlin.jvm.java
 enum class LaunchMode {
     SINGLE_INSTANCE,
     STANDARD,
+    ;
+
+    operator fun plus(data: Any?): Pair<LaunchMode, Any?> {
+        return this to data
+    }
 }
 
 /**
