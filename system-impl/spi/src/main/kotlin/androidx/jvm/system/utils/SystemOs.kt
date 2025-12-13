@@ -1,7 +1,27 @@
 package androidx.jvm.system.utils
 
 enum class SystemOs {
-    MacOS, Windows, Linux,
+    MacOS, Windows, Linux,Android;
+
+    fun fromString(platformName: String): SystemOs? {
+        return when (platformName.lowercase()) {
+            "windows" -> SystemOs.Windows
+            "linux" -> SystemOs.Linux
+            "mac" -> SystemOs.MacOS
+            "android" -> Android
+            else -> null
+        }
+    }
+
+    fun fromExecutableFileExtension(fileExtension: String): SystemOs? {
+        return when (fileExtension.lowercase()) {
+            "exe", "msi" -> SystemOs.Windows
+            "deb", "rpm" -> SystemOs.Linux
+            "dmg", "pkg" -> SystemOs.MacOS
+            "apk" -> SystemOs.Android
+            else -> null
+        }
+    }
 }
 
 enum class Arch {

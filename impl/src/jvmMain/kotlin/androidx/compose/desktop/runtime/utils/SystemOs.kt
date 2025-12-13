@@ -21,5 +21,8 @@ val systemVer by lazy {
             ""
 //            LinuxPlatform.getOsVersion()
         }
+        SystemOs.Android -> {
+            ""
+        }
     }
 }
