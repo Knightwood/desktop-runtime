@@ -6,11 +6,10 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val groupId = "com.github.knightwood"
 val artifactId = "jvm-system-spi"
 val githubUrl="https://github.com/Knightwood/desktop-runtime"
-group = groupId
-version = "1.0.0"
+group = rootProject.ext.get("jar_group")!!
+version = rootProject.ext.get("jar_version")!!
 
 fun getOptIns() = setOf(
     "com.russhwolf.settings.ExperimentalSettingsApi",

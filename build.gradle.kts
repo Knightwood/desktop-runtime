@@ -30,3 +30,8 @@ subprojects {
         }
     }
 }
+
+ext {
+    set("jar_group", "com.github.knightwood")
+    set("jar_version", "1.2.2")
+}

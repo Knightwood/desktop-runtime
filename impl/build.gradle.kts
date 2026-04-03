@@ -6,21 +6,12 @@ plugins {
 //    alias(libs.plugins.kotlin.serialization)
 }
 
-val groupId = "com.github.knightwood"
 val artifactId = "desktop-runtime"
 val githubUrl="https://github.com/Knightwood/desktop-runtime"
-group = groupId
-version = "1.2.1"
+group = rootProject.ext.get("jar_group")!!
+version = rootProject.ext.get("jar_version")!!
 
 kotlin {
-    // 启用 context-receivers 特性
-    targets.configureEach {
-        compilations.configureEach {
-            kotlinOptions {
-                freeCompilerArgs = listOf("-Xcontext-receivers")
-            }
-        }
-    }
     jvm()
     jvmToolchain(17)
     sourceSets {
