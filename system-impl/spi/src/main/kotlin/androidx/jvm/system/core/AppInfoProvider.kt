@@ -1,24 +1,28 @@
 package androidx.jvm.system.core
 
+import androidx.jvm.system.process.ProcessInfoHelper
+import androidx.jvm.system.utils.JvmUtils
+import androidx.jvm.system.utils.MutableLazy
+
 /**
  * 应用启动后，将应用信息放到这里，方便其他模块使用
  *
  * 需要在使用[AppPathProvider]之前就初始化
  */
 object AppInfoProvider {
-    private var appInfo: AppInfo? = null
-    internal val SEARCH_WINDOW_TITLE
-        get() = if (appInfo == null) {
-            ""
-        } else {
-            appInfo!!.appName
-        }
+    private var appInfo: AppInfo by MutableLazy {
+        val info = ProcessInfoHelper.sampleInfo
+        val isProcessNameIsJava = ProcessInfoHelper.sampleInfo.isProcessNameIsJava
+        AppInfo(
+            appName = if (isProcessNameIsJava) "DevJava" else info.processName
+        )
+    }
 
     /**
      * 获取应用信息
      */
     fun get(): AppInfo {
-        return appInfo!!
+        return appInfo
     }
 
     /**
@@ -42,7 +46,9 @@ object AppInfoProvider {
  * @property appDisplayName 软件显示名称、美化名称，给用户看的名称，默认与软件名称相同
  */
 data class AppInfo(
+    @Deprecated("无用")
     var isDevMode: Boolean = false,
     var appName: String = "untitled",
+    @Deprecated("无用")
     var appDisplayName: String = appName,
 )

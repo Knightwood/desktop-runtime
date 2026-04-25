@@ -1,6 +1,8 @@
 package androidx.jvm.system.core
 
+import androidx.jvm.system.process.ProcessInfoHelper
 import androidx.jvm.system.utils.JvmUtils
+import androidx.jvm.system.utils.MutableLazy
 import androidx.jvm.system.utils.SystemProperty
 import androidx.jvm.system.utils.noOptionParent
 import com.github.knightwood.slf4j.kotlin.info
@@ -100,7 +102,7 @@ fun AppPathProvider.jvmPath(): OkioPath {
  * 提供应用的路径信息，比如应用安装目录，系统的用户目录等 提供如下目录：用户目录路径，软件安装路径，默认配置文件夹路径。 提供路径注册功能
  */
 class AppPathProvider private constructor(
-    private val pathProviderImpl: AppBasePathProvider
+    private val pathProviderImpl: AppBasePathProvider,
 ) : AppBasePathProvider by pathProviderImpl {
 
     override fun print() {
@@ -134,10 +136,11 @@ class AppPathProvider private constructor(
 
 internal val ProviderImpl by lazy {
     //需要判断是否在ide环境
-    val path = PathService.getAppJarPath().toFile().absolutePath
+    val path = PathService.getAppJarDirPath().toFile().absolutePath
     val regex = Regex("build[\\\\/](libs|classes)") // 匹配 "build/libs" 或 "build/classes"
     val matches = regex.containsMatchIn(path)
-    if (matches) {
+    val isProcessNameIsJava = ProcessInfoHelper.sampleInfo.isProcessNameIsJava
+    if (matches || isProcessNameIsJava) {
         DebugAppPathProvider()
     } else {
         requireNotNull(
@@ -155,14 +158,21 @@ object PathService {
     /**
      * 用于获取应用程序路径
      */
-    var anyClass: Class<*>? = null
+    var anyClass: Class<*> by MutableLazy { ProcessInfoHelper.sampleInfo.mainClass }
+
+    /**
+     * jar包所在目录路径
+     */
     private var cache: MutableMap<Class<*>, OkioPath> = mutableMapOf()
 
-    fun getAppJarPath(): OkioPath {
+    /**
+     * 获取jar包的parent路径
+     */
+    fun getAppJarDirPath(): OkioPath {
         checkNotNull(anyClass) {
             "anyClass is null"
         }
-        return getAppJarPath(anyClass!!)
+        return getAppJarDirPath(anyClass)
     }
 
     /**
@@ -172,7 +182,7 @@ object PathService {
      * 为什么必须传入一个class，而不是默认一个：
      * 在idea中运行时，比如引入的jar包是来自本地.m2仓库，那么获取的路径是.m2仓库下的jar包路径，而不是项目目录
      */
-    fun getAppJarPath(clazz: Class<*>): OkioPath {
+    fun getAppJarDirPath(clazz: Class<*>): OkioPath {
         return cache[clazz] ?: JvmUtils.getJarPath(clazz).toOkioPath().noOptionParent.also {
             cache[clazz] = it
         }

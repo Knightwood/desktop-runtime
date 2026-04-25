@@ -4,9 +4,7 @@ import androidx.jvm.system.utils.SystemProperty
 import androidx.jvm.system.utils.noOptionParent
 import com.google.auto.service.AutoService
 import okio.Path
-import okio.Path.Companion.toOkioPath
 import okio.Path.Companion.toPath
-import java.nio.file.Paths
 
 /**
  * /应用名称                ---应用目录顶层       a
@@ -26,13 +24,13 @@ class WindowsAppPathProvider : AppBasePathProvider {
     /**
      * 安装路径，也就是a路径
      */
-    override val installPath: Path = PathService.getAppJarPath().noOptionParent
+    override val installPath: Path = PathService.getAppJarDirPath().noOptionParent
     //SystemProperty["user.dir"]!!.toPath()
 
     /**
      * jar包路径，就是b路径
      */
-    override val installedJarPath: Path = PathService.getAppJarPath()
+    override val installedJarPath: Path = PathService.getAppJarDirPath()
     //installPath.resolve("app")
 
     /**
