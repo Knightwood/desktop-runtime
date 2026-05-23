@@ -49,6 +49,9 @@ kotlin {
             implementation("ch.qos.logback:logback-classic:1.5.12")
             //spi
             implementation(libs.autoService.annoations)
+
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.core)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs){

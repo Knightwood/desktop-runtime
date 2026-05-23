@@ -4,6 +4,8 @@ import androidx.compose.desktop.runtime.core.Application
 import androidx.jvm.system.core.AppInfoProvider
 import androidx.jvm.system.core.AppPathProvider
 import androidx.jvm.system.core.keepDirExist
+import androidx.jvm.system.di.InstanceContext
+import androidx.jvm.system.di.startUp
 import androidx.jvm.system.process.ProcessLocker
 import androidx.jvm.system.utils.SystemProperty
 import ch.qos.logback.classic.LoggerContext
@@ -18,6 +20,7 @@ class MainApplication : Application() {
         ctx = this
         //通过修改locale，修改软件的语言显示
         Locale.setDefault(Locale.US)
+        InstanceContext.startUp()
         AppInfoProvider.provide {
             appName = "测试"
             isDevMode = false

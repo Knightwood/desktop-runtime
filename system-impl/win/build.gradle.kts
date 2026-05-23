@@ -67,6 +67,8 @@ dependencies {
     implementation(libs.autoService.annoations)
     implementation(project(":system-impl:spi"))
 
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)  // No version needed
 }
 
 configurations.implementation {

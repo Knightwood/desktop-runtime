@@ -1,5 +1,6 @@
 package androidx.jvm.system.core
 
+import androidx.jvm.system.di.getPlatformInstance
 import androidx.jvm.system.process.ProcessInfoHelper
 import androidx.jvm.system.utils.JvmUtils
 import androidx.jvm.system.utils.MutableLazy
@@ -143,13 +144,14 @@ internal val ProviderImpl by lazy {
     if (matches || isProcessNameIsJava) {
         DebugAppPathProvider()
     } else {
-        requireNotNull(
-            ServiceLoader
-                .load(AppBasePathProvider::class.java)
-                .firstOrNull()
-        ) {
-            "Implementation for AppBasePathProvider not found"
-        }
+        getPlatformInstance<AppBasePathProvider>()
+//        requireNotNull(
+//            ServiceLoader
+//                .load(AppBasePathProvider::class.java)
+//                .firstOrNull()
+//        ) {
+//            "Implementation for AppBasePathProvider not found"
+//        }
     }
 }
 

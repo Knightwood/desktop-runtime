@@ -227,18 +227,28 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 //        }
         finished = true
         ActivityManager.remove(uuid)
-        windowHolder.release()
+//        windowHolder.release()
         internalResultFlow.clear()
     }
 
     /**
      * 从windowManager移除window，window会进入onDispose状态，然后，window的生命周期走到destroy状态，
      * activity监听window生命周期，于是，activity也进入[ON_DESTROY]状态，并调用[onDestroy]方法
+     *
+     *
+     * fix: 2026-05-22，其实原先的实现方式有点绕，是dispose Awt窗口，activity收到生命周期通知，然后移除compose视图窗口
+     * 实际上我们可以直接调用[DxWindowHolder.release]移除compose视图窗口，自然Awt窗口会dispose，activity收到生命周期通知
+     * 而且这也更符合application的退出逻辑，即清空windowMgr中的所有窗口，然后，application退出。
+     * 方式如下：
+     * 1. 删除onDestroy中的windowHolder.release()
+     * 2. 删除finish中的window.dispose()，增加windowHolder.release()调用
+     *
      */
     @CallSuper
     open fun finish() {
         if (windowHolder.isAttached()) {
-            window.dispose()
+//            window.dispose()
+            windowHolder.release()
         } else {
             syncLife(ON_DESTROY, true)
             onDestroy()

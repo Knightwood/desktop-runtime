@@ -65,6 +65,9 @@ dependencies {
     //spi
     ksp(libs.autoService.ksp)
     implementation(libs.autoService.annoations)
+
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)  // No version needed
 }
 
 configurations.implementation {

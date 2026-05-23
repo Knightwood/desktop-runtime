@@ -67,6 +67,8 @@ dependencies {
     implementation(project(":system-impl:spi"))
 //    implementation("com.dorkbox:SystemTray:4.4")
 
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)  // No version needed
 }
 
 configurations.implementation {

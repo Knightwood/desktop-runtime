@@ -8,7 +8,7 @@ object JvmUtils {
     /**
      * 获取main函数所在的类
      */
-    fun getMainClass(): Class<*> {
+    fun getMainClass(): Class<*>? {
         return StackWalker.getInstance().walk { stream ->
             stream.filter { frame ->
                 "main".equals(frame.getMethodName())

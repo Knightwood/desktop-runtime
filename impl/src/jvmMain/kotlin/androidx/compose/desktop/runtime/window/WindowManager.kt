@@ -51,6 +51,7 @@ class WindowManager private constructor() {
     //    private val exit: MutableState<Boolean> = mutableStateOf(false)
     var contentWrapper: ApplicationContentWrapper? = null
     private var b = MutableStateFlow<Boolean>(false)
+    private var applicationScope: ApplicationScope? = null
 
     /**
      * 调用application方法，监听windows列表变化，并创建窗口内容。
@@ -61,6 +62,7 @@ class WindowManager private constructor() {
         //调用此函数，主线程就陷入阻塞了，所以需要注意。
         //exitProcessOnExit = false 避免主线程结束
         application(exitProcessOnExit = false) {
+            this@WindowManager.applicationScope = this
             contentWrapper?.ShowUI(scope = this, content = { AllWindowUi() }) ?: this.AllWindowUi()
             val state = b.collectAsState()
             if (state.value) {
@@ -101,6 +103,10 @@ class WindowManager private constructor() {
             it.release()
         }
         windows.clear()
+    }
+
+    fun exitApplication(){
+        applicationScope?.exitApplication()
     }
 
     fun isEmpty(): Boolean {

@@ -4,10 +4,13 @@ import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.material3.Text
 import androidx.compose.desktop.runtime.activity.Intent
 import androidx.compose.desktop.runtime.utils.err.SwingErrorDialog
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.dp
 import androidx.jvm.system.core.AppPathProvider
 import androidx.jvm.system.core.keepDirExist
 import androidx.jvm.system.process.ProcessLocker
@@ -73,19 +76,28 @@ open class TestActivity : Activity() {
                         }) {
                             Text("点击启动fragment测试页面")
                         }
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
 
-                        Button(onClick = {
-                            scope.launch {
-                                throw RuntimeException("测试异常")
+                            Button(onClick = {
+                                scope.launch {
+                                    throw RuntimeException("测试异常")
+                                }
+                            }) {
+                                //如果协程作用域不是SupervisorJob，会在抛出异常后结束掉协程作用域，无法再次使用
+                                Text("协程抛出异常")
                             }
-                        }) {
-                            //如果协程作用域不是SupervisorJob，会在抛出异常后结束掉协程作用域，无法再次使用
-                            Text("协程抛出异常")
-                        }
-                        Button(onClick = {
-                            throw RuntimeException("测试异常")
-                        }) {
-                            Text("ui抛出异常")
+                            Button(onClick = {
+                                throw RuntimeException("测试异常")
+                            }) {
+                                Text("ui抛出异常")
+                            }
+                            Button(onClick = {
+                                exitApp()
+                            }) {
+                                Text("退出程序")
+                            }
                         }
 
                         Button(onClick = {

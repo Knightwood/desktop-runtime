@@ -119,7 +119,7 @@ open class Application : ContextWrapper(), LifecycleOwner {
      */
     internal fun startMainActivity(
         mainActivity: Class<out Activity>,
-        intentBuilder: (Intent.() -> Unit)?
+        intentBuilder: (Intent.() -> Unit)?,
     ) {
         val intent = Intent(mainActivity)
         intentBuilder?.invoke(intent)
@@ -139,14 +139,17 @@ open class Application : ContextWrapper(), LifecycleOwner {
                 // FIXME: 不知道为什么有时候他的生命周期状态会退回到`INITIALIZED`，但这不妨碍我们结束应用
                 lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
                 lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+                onDestroy()
+                activityManager().release()
+                val windowMgr = windowManager()
+                windowMgr.release()
+                ServiceHolder.release()
+                windowMgr.exitApplication()
             } catch (e: Exception) {
                 logger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
+            }finally {
+                exitProcess(0)
             }
-            onDestroy()
-            activityManager().release()
-            windowManager().release()
-            ServiceHolder.release()
-            exitProcess(0)
         }
     }
 }
@@ -173,7 +176,7 @@ fun exit(err: Boolean) {
 inline fun <reified T : Activity, reified R : Application> startApplication(
     vararg aware: Aware,
     applicationContent: ApplicationContentWrapper? = null,
-    noinline intentBuilder: (Intent.() -> Unit)? = null
+    noinline intentBuilder: (Intent.() -> Unit)? = null,
 ) {
     startApplication(
         T::class.java, R::class.java,
@@ -197,7 +200,7 @@ fun startApplication(
     applicationClass: Class<out Application> = Application::class.java,
     vararg aware: Aware,
     applicationContent: ApplicationContentWrapper? = null,
-    intentBuilder: (Intent.() -> Unit)? = null
+    intentBuilder: (Intent.() -> Unit)? = null,
 ) {
     PathService.anyClass = mainActivity//用于获取程序目录
     synchronized(lock) {
@@ -223,7 +226,7 @@ fun startApplication(
  */
 fun runOnUIThread(
     lock: Mutex? = null,
-    block: suspend CoroutineScope.() -> Unit
+    block: suspend CoroutineScope.() -> Unit,
 ) {
     applicationInternal.scope.launch {
         withContext(MainUIDispatcher) {
