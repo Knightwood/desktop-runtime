@@ -85,6 +85,9 @@ interface InstanceKoinComponent : KoinComponent {
 /**
  * app模块调用此方法启动koin、加载其他平台注册的模块
  * 并加载通过参数传入的模块
+ * ```
+ * InstanceContext.startUp()
+ * ```
  */
 fun InstanceContext.startUp(appDeclaration: KoinAppDeclaration = {}) {
     startKoin(appDeclaration = appDeclaration)

@@ -58,7 +58,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.12")
 
     //jna
-//    implementation(libs.jna)
+    implementation(libs.jna)
 //    implementation(libs.jna.platform)
 //    implementation(libs.jnativehook)
 
