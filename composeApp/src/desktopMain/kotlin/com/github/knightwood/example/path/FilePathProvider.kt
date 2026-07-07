@@ -5,9 +5,7 @@ import androidx.jvm.system.core.keepDirExist
 import androidx.jvm.system.core.keepFileExist
 import okio.Path
 
-/**
- * 数据库、datastore、log文件、数据文件（生成的证书、记录的excel文件等）
- */
+
 object FilePathProvider {
 
     /**
@@ -30,16 +28,17 @@ object FilePathProvider {
      * 数据库文件
      */
     val dbFile: Path
-        get() = internalConfigDir.resolve("ii1.db")
+        get() = internalConfigDir.resolve("data.db")
 
     /**
      * datastore文件
      */
     val dataStoreFile: Path
-        get() = internalConfigDir.resolve("ii1.preferences_pb")
+        get() = internalConfigDir.resolve("data.preferences_pb")
 
     /**
-     * 日志文件夹 已在logback.xml中指定，在代码中配置太麻烦了。 这里的路径仅用于操作日志文件，需要注意与logback中对应。
+     * 日志文件夹 已在logback.xml中指定，在代码中配置太麻烦了。
+     * 这里的路径仅用于操作日志文件，需要注意与logback中对应。
      */
     val logDir: Path
         get() {
@@ -55,26 +54,10 @@ object FilePathProvider {
         }
 
     /**
-     * 插件存放目录
-     */
-    val pluginsDir: Path
-        get() {
-            return publicConfigDir.resolve("plugins").keepDirExist()
-        }
-
-    /**
-     * 插件存放目录
-     */
-    val internalPluginsDir: Path
-        get() {
-            return internalConfigDir.resolve("plugins").keepDirExist()
-        }
-
-    /**
      * 使用进程锁的lock文件
      */
     val lockFilePath: Path
         get() {
-            return internalConfigDir.resolve("app_lock.lz").keepFileExist()
+            return internalConfigDir.resolve("app_lock").keepFileExist()
         }
 }

@@ -6,9 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import com.github.knightwood.example.path.FilePathProvider
 import javax.swing.JOptionPane
 
-/**
- * 提供一些app的运行状态，比如当前是否运行检定任务
- */
+
 object AppStateHolder {
     private val coroutineScope= CoroutineScope(Dispatchers.Default)
     private var exitAction: IOperateAction<Any>? = null

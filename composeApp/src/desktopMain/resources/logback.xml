@@ -3,7 +3,7 @@
     <!-- 定义日志输出格式 -->
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} -%marker %msg%n"/>
     <!-- 定义日志输出目录 -->
-    <property name="LOG_DIR" value="C:/Users/${user.name}/AppData/Roaming/multi_device_controller"/>
+    <property name="LOG_DIR" value="C:/Users/${user.name}/AppData/Roaming/appTester"/>
 
     <!-- 控制台输出 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
