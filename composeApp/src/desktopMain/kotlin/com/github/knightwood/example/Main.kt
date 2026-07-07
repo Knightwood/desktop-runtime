@@ -50,7 +50,7 @@ fun main() {
 }
 
 @Composable
-fun SystemTray() {
+fun ApplicationScope.SystemTray() {
     val painter = painterResource("icons/app_icon.svg")
     val icon1 = rememberVectorPainter(Icons.Default.Settings)
     val icon2 = rememberVectorPainter(Icons.Default.ExitToApp)
