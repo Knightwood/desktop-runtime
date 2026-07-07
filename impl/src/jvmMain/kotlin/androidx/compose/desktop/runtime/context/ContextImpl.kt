@@ -7,18 +7,19 @@ import androidx.compose.desktop.runtime.core.ServiceHolder
 import androidx.compose.desktop.runtime.core.applicationInternal
 import androidx.compose.desktop.runtime.domain.Stop
 import androidx.compose.desktop.runtime.window.WindowManager
+import androidx.jvm.system.di.InstanceKoinComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-open class ContextImpl() : IContext() {
+open class ContextImpl() : IContext(), InstanceKoinComponent {
     override val application: Application
         get() = applicationInternal
 
-    override fun windowManager(): WindowManager = ServiceHolder[WindowManager.NAME]!!
+    override fun windowManager(): WindowManager  = getKoin().get<WindowManager>()
 
-    override fun activityManager(): ActivityManager = ServiceHolder[ActivityManager.NAME]!!
+    override fun activityManager(): ActivityManager = getKoin().get<ActivityManager>()
 
     override fun exitApp() {
         //反正都要退出了，随便用一个协程也不是什么罪过了

@@ -19,6 +19,7 @@ import androidx.compose.desktop.runtime.window.DxWindowHolder
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.*
+import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.savedstate.SavedState
 import com.github.knightwood.slf4j.kotlin.logFor
 import com.github.knightwood.slf4j.kotlin.logger
@@ -70,7 +71,7 @@ enum class LaunchMode {
  * 首先，修改java默认locale，然后关闭窗口，此时compose进入onStop状态，
  * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
  */
-abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver {
+abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver, InstanceKoinComponent {
     lateinit var windowHolder: DxWindowHolder
     lateinit var intent: Intent
     val window: ComposeWindow
@@ -125,7 +126,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         if (!this::windowHolder.isInitialized) {
             windowHolder = DxWindowHolder(this, windowManager(), intent.multiApplication)
         }
-        ActivityManager.register(uuid, this@Activity)
+        activityManager().register(uuid, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
         onCreate(activityManager().obtainSavestateNullable(uuid))
     }
@@ -226,7 +227,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 //            activityManager().setBundle(uuid, saved)
 //        }
         finished = true
-        ActivityManager.remove(uuid)
+        activityManager().remove(uuid)
 //        windowHolder.release()
         internalResultFlow.clear()
     }

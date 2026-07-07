@@ -32,7 +32,6 @@ class MainApplication : Application() {
         ctx = this
         //通过修改locale，修改软件的语言显示
         Locale.setDefault(Locale.US)
-        InstanceContext.startUp()
         AppInfoProvider.provide {
             appName = "测试"
             isDevMode = false

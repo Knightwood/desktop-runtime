@@ -10,6 +10,8 @@ import androidx.compose.desktop.runtime.context.ContextWrapper
 import androidx.compose.desktop.runtime.domain.Stop
 import androidx.compose.desktop.runtime.window.ApplicationContentWrapper
 import androidx.jvm.system.core.PathService
+import androidx.jvm.system.di.InstanceContext
+import androidx.jvm.system.di.startUp
 import androidx.lifecycle.Lifecycle.Event.ON_CREATE
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.error
@@ -204,6 +206,7 @@ fun startApplication(
 ) {
     PathService.anyClass = mainActivity//用于获取程序目录
     synchronized(lock) {
+        InstanceContext.startUp()
         if (!::applicationInternal.isInitialized || applicationInternal.fake) {
             // 创建Application实例，并初始化；不要在此处给applicationInternal赋值，因为阻塞会导致永远不会赋值
             applicationClass.getDeclaredConstructor().newInstance().also {

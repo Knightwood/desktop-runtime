@@ -3,6 +3,7 @@ package androidx.compose.desktop.runtime.window
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.window.*
+import androidx.jvm.system.di.InstanceKoinComponent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.jetbrains.skiko.MainUIDispatcher
@@ -43,7 +44,7 @@ internal fun ApplicationContentWrapper.ShowUI(scope: ApplicationScope, content: 
  * 有两种实现方式： 一种是每个window都在新的application块中调用，这个实现会比较简单。
  * 另一种实现是在这里调用application，所有window都在同一个application块中调用。
  */
-class WindowManager private constructor() {
+class WindowManager constructor() : InstanceKoinComponent {
     val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
 
     private val windows: SnapshotStateList<DxWindowHolder> = SnapshotStateList()
@@ -111,19 +112,6 @@ class WindowManager private constructor() {
 
     fun isEmpty(): Boolean {
         return windows.isEmpty()
-    }
-
-    companion object {
-        const val NAME = "WindowManager"
-
-        @Volatile
-        private var singleInstance: WindowManager? = null
-
-        fun instance(): WindowManager {
-            return singleInstance ?: synchronized(this) {
-                singleInstance ?: WindowManager().also { singleInstance = it }
-            }
-        }
     }
 
 }

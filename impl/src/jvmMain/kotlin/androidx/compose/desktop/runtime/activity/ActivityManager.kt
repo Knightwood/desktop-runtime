@@ -38,8 +38,7 @@ class SaveStateHolder : ISaveStateHolder {
 /**
  * 管理所有的activity
  */
-object ActivityManager : ISaveStateHolder by SaveStateHolder() {
-    const val NAME = "ActivityManager"
+class ActivityManager : ISaveStateHolder by SaveStateHolder() {
     val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
 
     // activity map

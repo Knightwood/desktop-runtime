@@ -4,10 +4,11 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.vanniktech.mavenPublish)
 //    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 val artifactId = "desktop-runtime"
-val githubUrl="https://github.com/Knightwood/desktop-runtime"
+val githubUrl = "https://github.com/Knightwood/desktop-runtime"
 group = rootProject.ext.get("jar_group")!!
 version = rootProject.ext.get("jar_version")!!
 
@@ -37,6 +38,10 @@ kotlin {
             // SLF4J
             implementation("org.slf4j:slf4j-api:2.0.15")
             implementation("com.github.knightwood:slf4j-api-kotlin:0.0.7")
+
+
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.core)  // No version needed
         }
 
         jvmMain.dependencies {
@@ -44,7 +49,7 @@ kotlin {
             implementation(libs.okio)
             implementation(project(":system-impl:spi"))
             implementation(libs.kotlin.coroutines.swing)
-            implementation(compose.desktop.currentOs){
+            implementation(compose.desktop.currentOs) {
                 exclude("org.jetbrains.compose.material")
             }
             // logback-classic 1.3.15是最后的java 8 版本，后续版本要求java 11
@@ -52,6 +57,8 @@ kotlin {
 //            implementation(libs.jna)
 //            implementation(libs.jna.platform)
 //            implementation(libs.jnativehook)
+            //spi
+            implementation(libs.autoService.annoations)
         }
 
         configurations {
@@ -96,4 +103,8 @@ mavenPublishing {
             url = githubUrl
         }
     }
+}
+
+dependencies {
+    add("kspJvm", libs.autoService.ksp)
 }

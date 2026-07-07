@@ -1,6 +1,5 @@
 package androidx.compose.desktop.runtime.viewmodel
 
-import androidx.annotation.MainThread
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.createSavedStateHandle

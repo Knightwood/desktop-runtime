@@ -3,6 +3,7 @@ package androidx.compose.desktop.runtime.core
 import androidx.compose.desktop.runtime.activity.ActivityManager
 import androidx.compose.desktop.runtime.domain.RunningState
 import androidx.compose.desktop.runtime.window.WindowManager
+import androidx.jvm.system.di.InstanceContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
@@ -13,30 +14,19 @@ internal object ServiceHolder {
      * 程序的运行状态
      */
     var runningState: MutableSharedFlow<RunningState> = MutableSharedFlow()
-    private val map: MutableMap<String, Any> = mutableMapOf()
 
     /**
      * 生成并持有所有资源服务实例
      */
     fun prepare() {
-        // ActivityManager
-        map[ActivityManager.NAME] = ActivityManager
-        // WindowManager
-        map[WindowManager.NAME] = WindowManager.instance()
+        InstanceContext.get().run {
+            get<ActivityManager>()
+            get<WindowManager>()
+        }
     }
 
-    fun release(){
-        map.clear()
+    fun release() {
+
     }
 
-    /**
-     * 获取WindowManager
-     *
-     * ```
-     * val manager= ManagerHolder[WindowManager.name]
-     * ```
-     */
-    operator fun <T> get(name: String): T? {
-        return map[name] as? T
-    }
 }

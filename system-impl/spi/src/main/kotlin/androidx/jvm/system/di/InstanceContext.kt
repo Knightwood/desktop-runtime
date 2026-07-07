@@ -12,7 +12,7 @@ import org.koin.dsl.KoinAppDeclaration
 import java.util.ServiceLoader
 
 object InstanceContext : KoinContext {
-
+    private var isStartup = false
     private var _koin: Koin? = null
     private var _koinApplication: KoinApplication? = null
 
@@ -36,10 +36,13 @@ object InstanceContext : KoinContext {
     }
 
     override fun startKoin(koinApplication: KoinApplication): KoinApplication = synchronized(this) {
-        register(koinApplication)
-        koinApplication.createEagerInstances()
-        koinApplication.modules(findModules())//加载其他平台注册进来的模块
-        return koinApplication
+        if (!isStartup) {
+            register(koinApplication)
+            koinApplication.createEagerInstances()
+            koinApplication.modules(findModules())//加载其他平台注册进来的模块
+            isStartup = true
+        }
+        koinApplication
     }
 
     private fun findModules(): MutableList<Module> {
