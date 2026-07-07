@@ -9,12 +9,22 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.jvm.system.core.AppPathProvider
 import androidx.jvm.system.core.keepDirExist
 import androidx.jvm.system.process.ProcessLocker
+import androidx.jvm.system.ui.tray.TrayConf
 import androidx.savedstate.SavedState
+import com.github.knightwood.example.components.TextSwitch
+import com.github.knightwood.example.components.render.RenderApiSelector
+import com.github.knightwood.example.components.settings.XSettingsProvider
 import com.github.knightwood.example.mainActivity
 import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.*
@@ -34,6 +44,8 @@ open class TestActivity : Activity() {
         mainActivity = this
         setContent {
             ComposeView(onCloseRequest = { finish() }) {
+                val xSettings = XSettingsProvider.flow.collectAsState(initial = XSettingsProvider.defaultValue())
+
                 MaterialTheme {
                     Column {
                         Text(text = "rememberSavable测试")
@@ -99,6 +111,28 @@ open class TestActivity : Activity() {
                                 Text("退出程序")
                             }
                         }
+                        ListItem(
+                            headlineContent = { Text("更换渲染api") },
+                            trailingContent = {
+                                RenderApiSelector(
+                                    selected = xSettings.value.skikoRenderApi,
+                                    onChanged = {
+                                        scope.launch {
+                                            XSettingsProvider.update(
+                                                xSettings.value.copy(skikoRenderApi = it)
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        )
+                        var transparentTrayWindow by remember { mutableStateOf(true) }
+                        TextSwitch(
+                            "透明托盘菜单", checked = transparentTrayWindow,
+                            onCheckedChange = {
+                                transparentTrayWindow = it
+                                TrayConf.transparent = it
+                            })
 
                         Button(onClick = {
                             SwingErrorDialog.showErrorDialog(RuntimeException("测试异常弹窗"))

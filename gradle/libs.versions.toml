@@ -13,6 +13,7 @@ jsoup = "1.18.3"
 autoServiceKsp = "1.2.0"
 autoService = "1.1.1"
 koin-bom = "4.0.2"
+dataStore = "1.2.1"
 
 [libraries]
 compose-icon-core = {module="org.jetbrains.compose.material:material-icons-core",version="1.7.3"}
@@ -24,6 +25,10 @@ androidx-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecy
 androidx-lifecycle-viewmodel-savestate = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-savedstate", version.ref = "androidx-lifecycle" }
 androidx-savestate = { module = "org.jetbrains.androidx.savedstate:savedstate", version = "1.3.4-rc01" }
 core-bundle = { module = "org.jetbrains.androidx.core:core-bundle", version = "1.1.0-alpha03" } # 如果需要bundle类，需要引入此包
+
+androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "dataStore" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "dataStore" }
+
 
 kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlin-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing", version.ref = "coroutines" }
