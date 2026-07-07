@@ -1,4 +1,4 @@
-package androidx.jvm.system.ui.tray.impl
+package androidx.jvm.system.ui.tray.menu_dialog
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -9,17 +9,21 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.window.PopupPositionProviderAtPosition
 import androidx.jvm.system.utils.GlobalLayoutDirection
+import com.github.knightwood.slf4j.kotlin.logFor
 import java.awt.Component
 import java.awt.Insets
 import java.awt.Toolkit
 import java.awt.Window
 
+private val logger = logFor("托盘弹窗位置计算")
+
 @OptIn(ExperimentalComposeUiApi::class)
 fun Window.moveSafe(
-    position: DpOffset,
+    position: IntOffset,
     alignment: Alignment = Alignment.BottomEnd,
 ) {
     val window = this
+    logger.debug("窗口宽高${window.width}X${window.height}")
     val p = PopupPositionProviderAtPosition(
         positionPx = Offset.Zero,
         isRelativeToAnchor = true,
@@ -37,18 +41,18 @@ fun Window.moveSafe(
         layoutDirection = GlobalLayoutDirection,
         windowSize = screenSize - insets,
         anchorBounds = IntRect(
-            position.x.value.toInt(),
-            position.y.value.toInt(),
-            position.x.value.toInt(),
-            position.y.value.toInt(),
+            position.x,
+            position.y,
+            position.x,
+            position.y,
         ),
     ) + insets
+    logger.debug("最终显示位置左上角$offset")
     window.setLocation(
         offset.x,
         offset.y,
     )
 }
-
 fun getScreenInsets(component: Component): Insets {
     return runCatching {
         Toolkit.getDefaultToolkit().getScreenInsets(component.graphicsConfiguration)

@@ -29,6 +29,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.jvm.system.utils.GlobalDensity
 import androidx.jvm.system.utils.GlobalLayoutDirection
 import androidx.jvm.system.utils.SystemOs
@@ -64,6 +65,7 @@ val isTraySupported: Boolean get() = SystemTray.isSupported()
 
 // TODO(demin): add mouse click/double-click/right click listeners (can we use PointerInputEvent?)
 /**
+ * 修改自 [androidx.compose.ui.window.Tray]
  * !! 注意，参数“menu”不可以使用，他需要jvm编码为gbk才可以正常显示中文。
  *
  * Adds tray icon to the platform taskbar if it is supported.
@@ -85,14 +87,14 @@ val isTraySupported: Boolean get() = SystemTray.isSupported()
  */
 @Suppress("unused")
 @Composable
-fun DesktopTray(
+fun ApplicationScope.FixedTray(
     icon: Painter,
     state: TrayState = rememberTrayState(),
     tooltip: String? = null,
     onClick: () -> Unit = {},
     //it is a dp offset on the screen
-    onRightClick: (DpOffset) -> Unit,
-    menu: @Composable MenuScope.() -> Unit = {}
+    onRightClick: (IntOffset) -> Unit,
+    menu: @Composable MenuScope.() -> Unit = {},
 ) {
     if (!isTraySupported) {
         DisposableEffect(Unit) {
@@ -111,7 +113,6 @@ fun DesktopTray(
         return
     }
 
-    val density by rememberUpdatedState(GlobalDensity)
     val currentOnAction by rememberUpdatedState(onClick)
     val currentRightClick by rememberUpdatedState(onRightClick)
 
@@ -125,7 +126,7 @@ fun DesktopTray(
         icon.toAwtImage(GlobalDensity, GlobalLayoutDirection, iconSize)
     }
 
-    val trayIcon = remember {
+    val tray = remember {
         TrayIcon(awtIcon).apply {
             isImageAutoSize = true
         }
@@ -134,49 +135,45 @@ fun DesktopTray(
     val currentMenu by rememberUpdatedState(menu)
 
     SideEffect {
-        if (trayIcon.image != awtIcon) trayIcon.image = awtIcon
-        if (trayIcon.toolTip != tooltip) trayIcon.toolTip = tooltip
+        if (tray.image != awtIcon) tray.image = awtIcon
+        if (tray.toolTip != tooltip) tray.toolTip = tooltip
     }
 
     val composition = rememberCompositionContext()
     val coroutineScope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
-        trayIcon.popupMenu = popupMenu
+        tray.popupMenu = popupMenu
         val actionListener = ActionListener { currentOnAction() }
         val doubleClickListener = object : MouseAdapter() {
             override fun mouseClicked(p0: MouseEvent?) {
                 when (p0?.button) {
                     1 -> currentOnAction()
                     3 -> {
-                        with(density) {
-                            currentRightClick(
-                                DpOffset(p0.x.toDp(), p0.y.toDp())
-                            )
-                        }
+                        currentRightClick(IntOffset(p0.x, p0.y))
                     }
                 }
             }
         }
 
-        trayIcon.addActionListener(actionListener)
-        trayIcon.addMouseListener(doubleClickListener)
+        tray.addActionListener(actionListener)
+        tray.addMouseListener(doubleClickListener)
 
         val menuComposition = popupMenu.setContent(composition) {
             currentMenu()
         }
 
-        SystemTray.getSystemTray().add(trayIcon)
+        SystemTray.getSystemTray().add(tray)
 
         state.notificationFlow
-            .onEach(trayIcon::displayMessage)
+            .onEach(tray::displayMessage)
             .launchIn(coroutineScope)
 
         onDispose {
             menuComposition.dispose()
-            trayIcon.removeActionListener(actionListener)
-            trayIcon.removeMouseListener(doubleClickListener)
-            SystemTray.getSystemTray().remove(trayIcon)
+            tray.removeActionListener(actionListener)
+            tray.removeMouseListener(doubleClickListener)
+            SystemTray.getSystemTray().remove(tray)
         }
     }
 }
