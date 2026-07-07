@@ -43,7 +43,7 @@ open class TestActivity : Activity() {
         super.onCreate(savedInstanceState)
         mainActivity = this
         setContent {
-            ComposeView(onCloseRequest = { finish() }) {
+            ComposeView(onCloseRequest = { hide() }) {
                 val xSettings = XSettingsProvider.flow.collectAsState(initial = XSettingsProvider.defaultValue())
 
                 MaterialTheme {
