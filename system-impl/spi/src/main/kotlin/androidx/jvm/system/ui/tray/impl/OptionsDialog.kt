@@ -2,6 +2,7 @@ package androidx.jvm.system.ui.tray.impl
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.window.*
+import androidx.jvm.system.ui.tray.TrayConf
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 
@@ -17,7 +18,7 @@ fun BaseOptionDialog(
         visible = true,
         state = state,
         undecorated = true,
-        transparent = true,
+        transparent = TrayConf.transparent,
         resizable = resizeable,
         onCloseRequest = onCloseRequest,
     ) {

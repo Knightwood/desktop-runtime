@@ -3,6 +3,7 @@ package androidx.jvm.system.ui.tray
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.window.ApplicationScope
 import androidx.jvm.system.ui.tray.impl.isTraySupported
 import java.util.*
 
@@ -17,7 +18,7 @@ import java.util.*
  *  在linux和mac上我们不使用SystemTray和TrayIcon，使用第三方库实现所有功能。
  */
 @Composable
-fun FixedSystemTray(
+fun ApplicationScope.FixedSystemTray(
     icon: Painter,
     tooltip: String = "",
     menu: List<ITrayMenuItem> = remember { listOf() },
@@ -39,4 +40,8 @@ interface ISystemTray {
         menu: List<ITrayMenuItem>,
         onLeftClick: () -> Unit,
     )
+}
+
+object TrayConf {
+    var transparent = false
 }

@@ -48,8 +48,7 @@ class DefaultFixedTray : ISystemTray {
                     closeOptions,
                 ) {
                     Surface(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier,
                         shape = MaterialTheme.shapes.small,
                     ) {
                         Column(
@@ -87,22 +86,17 @@ private fun ColumnScope.FixedTrayMenuItem(
     icon: Painter?,
     title: String,
 ) {
-    Surface(
+    DropdownMenuItem(
+        text = {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+        },
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            icon?.let {
+        leadingIcon = icon?.let {
+            {
                 Icon(it, contentDescription = null, modifier = Modifier.requiredSize(24.dp))
             }
-            Text(title, style = MaterialTheme.typography.titleMedium,modifier=Modifier.padding(bottom=4.dp))
         }
-    }
+    )
 }
 
 
