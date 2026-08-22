@@ -5,8 +5,9 @@ import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.compose.runtime.staticCompositionLocalOf
+import kotlin.reflect.KClass
 
-val LocalContext = staticCompositionLocalOf<IContext> {
+val LocalContext = staticCompositionLocalOf<Context> {
     noLocalProvidedFor("LocalContext")
 }
 
@@ -17,8 +18,14 @@ fun noLocalProvidedFor(name: String): Nothing {
 /**
  * 仿照android，context将提供很多的系统的api或是英勇的快捷操作
  */
-abstract class IContext {
+abstract class Context {
+
     abstract val application: Application
+
+    abstract val applicationContext: Context
+
+    abstract fun<T : Any> getService(cls: KClass<T>): T
+
     abstract fun windowManager(): WindowManager
     abstract fun activityManager(): ActivityManager
 
@@ -39,7 +46,7 @@ abstract class IContext {
     }
 }
 
-fun <DATA> IContext.startActivity(
+fun <DATA> Context.startActivity(
     to: Class<out Activity>,
     data: DATA? = null,
     launchMode: LaunchMode = LaunchMode.STANDARD,
@@ -47,15 +54,15 @@ fun <DATA> IContext.startActivity(
     startActivity(Intent(to, data, launchMode))
 }
 
-fun <DATA> IContext.startActivity(
-    to: Class<out Activity>,from: Any,
+fun <DATA> Context.startActivity(
+    to: Class<out Activity>, from: Any,
     data: DATA?,
     launchMode: LaunchMode = LaunchMode.STANDARD,
 ) {
     startActivity(Intent(from, to, data, launchMode))
 }
 
-fun <DATA> IContext.startActivity(
+fun <DATA> Context.startActivity(
     to: Class<out Activity>,
     from: Class<*>,
     pair: Pair<LaunchMode, DATA?>? = null,
@@ -64,7 +71,7 @@ fun <DATA> IContext.startActivity(
     startActivity(Intent(from, to, data, launchMode))
 }
 
-fun <DATA> IContext.startActivity(
+fun <DATA> Context.startActivity(
     to: Class<out Activity>,
     pair: Pair<LaunchMode, DATA?>? = null,
 ) {

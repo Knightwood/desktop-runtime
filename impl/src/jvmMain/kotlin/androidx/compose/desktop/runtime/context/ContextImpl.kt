@@ -3,29 +3,32 @@ package androidx.compose.desktop.runtime.context
 import androidx.compose.desktop.runtime.activity.*
 import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
-import androidx.compose.desktop.runtime.core.ServiceHolder
-import androidx.compose.desktop.runtime.core.applicationInternal
-import androidx.compose.desktop.runtime.domain.Stop
+import androidx.compose.desktop.runtime.core.Singularity
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.jvm.system.di.InstanceKoinComponent
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlin.reflect.KClass
 
-open class ContextImpl() : IContext(), InstanceKoinComponent {
-    override val application: Application
-        get() = applicationInternal
+open class ContextImpl() : Context(), InstanceKoinComponent {
+    override lateinit var application: Application
+    override lateinit var applicationContext: Context
 
-    override fun windowManager(): WindowManager  = getKoin().get<WindowManager>()
+    internal fun attachApplication(application: Application) {
+        this.application = application
+        this.applicationContext = application
+    }
+
+    override fun <T : Any> getService(cls: KClass<T>): T {
+        return getKoin().get(cls)
+    }
+
+    override fun windowManager(): WindowManager = getKoin().get<WindowManager>()
 
     override fun activityManager(): ActivityManager = getKoin().get<ActivityManager>()
 
     override fun exitApp() {
-        //反正都要退出了，随便用一个协程也不是什么罪过了
-        CoroutineScope(Dispatchers.Default).launch {
-            ServiceHolder.runningState.emit(Stop())
-        }
+        Singularity.exitAppOrProcess(false)
     }
 
     override fun startActivity(
@@ -46,7 +49,7 @@ open class ContextImpl() : IContext(), InstanceKoinComponent {
      */
     private fun startActivityInner(
         intent: Intent,
-        callback: ActivityResultCallback? = null
+        callback: ActivityResultCallback? = null,
     ) {
         if (intent.launchMode == LaunchMode.SINGLE_INSTANCE) {
             intent.uuid = intent.targetActivity.canonicalName

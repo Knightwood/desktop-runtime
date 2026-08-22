@@ -2,7 +2,7 @@
 
 package androidx.compose.desktop.runtime.domain
 
-import androidx.compose.desktop.runtime.context.IContext
+import androidx.compose.desktop.runtime.context.Context
 import androidx.compose.desktop.runtime.context.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
@@ -29,7 +29,7 @@ import java.io.Serializable
 @Composable
 fun ProvideAndroidCompositionLocalsForDialog(
     id: String,
-    context: IContext?,
+    context: Context?,
     lifecycleOwner: LifecycleOwner,
     viewModelStoreOwner: ViewModelStoreOwner,
     savedStateRegistryOwner: SavedStateRegistryOwner,
@@ -83,7 +83,7 @@ fun ProvideAndroidCompositionLocalsForDialog(
 @Composable
 fun ProvideAndroidCompositionLocals(
     id: String,
-    context: IContext?,
+    context: Context?,
     activityLifecycleOwner: LifecycleOwner,
     viewModelStoreOwner: ViewModelStoreOwner,
     savedStateRegistryOwner: SavedStateRegistryOwner,

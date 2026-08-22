@@ -3,6 +3,7 @@
 package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
+import androidx.compose.desktop.runtime.core.Singularity
 import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocals
 import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.compose.runtime.Composable
@@ -122,7 +123,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
          *    to the Application instance i.e., before onCreate()
          */
         get() {
-            check(!application.fake) {
+            check(Singularity.isApplicationExist()) {
                 ("Your activity is not yet attached to the " +
                         "Application instance. You can't request ViewModel before onCreate call.")
             }

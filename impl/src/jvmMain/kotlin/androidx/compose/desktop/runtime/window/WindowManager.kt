@@ -51,6 +51,7 @@ class WindowManager constructor() : InstanceKoinComponent {
 
     //    private val exit: MutableState<Boolean> = mutableStateOf(false)
     var contentWrapper: ApplicationContentWrapper? = null
+        internal set
     private var b = MutableStateFlow<Boolean>(false)
     private var applicationScope: ApplicationScope? = null
 
@@ -106,7 +107,7 @@ class WindowManager constructor() : InstanceKoinComponent {
         windows.clear()
     }
 
-    fun exitApplication(){
+    fun exitApplication() {
         applicationScope?.exitApplication()
     }
 

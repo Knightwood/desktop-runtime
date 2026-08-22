@@ -41,6 +41,7 @@ open class TestActivity : Activity() {
 
     override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
+        logger.warn(applicationContext.toString())
         mainActivity = this
         setContent {
             ComposeView(onCloseRequest = { finish() }) {

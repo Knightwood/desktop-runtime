@@ -1,4 +1,4 @@
-package androidx.compose.desktop.runtime.core
+package androidx.compose.desktop.runtime.fragment
 
 import androidx.annotation.CallSuper
 import androidx.compose.desktop.runtime.activity.ISaveStateHolder

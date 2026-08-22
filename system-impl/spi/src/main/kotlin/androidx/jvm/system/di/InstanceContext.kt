@@ -4,15 +4,20 @@ import androidx.jvm.system.utils.currentOS
 import org.koin.core.Koin
 import org.koin.core.KoinApplication
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.KoinScopeComponent
 import org.koin.core.context.KoinContext
 import org.koin.core.error.KoinApplicationAlreadyStartedException
 import org.koin.core.module.Module
+import org.koin.core.parameter.ParametersDefinition
+import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.KoinAppDeclaration
+import org.koin.java.KoinJavaComponent.get
+import org.koin.java.KoinJavaComponent.getKoin
+import org.koin.mp.KoinPlatformTools
 import java.util.ServiceLoader
 
 object InstanceContext : KoinContext {
-    private var isStartup = false
     private var _koin: Koin? = null
     private var _koinApplication: KoinApplication? = null
 
@@ -36,12 +41,9 @@ object InstanceContext : KoinContext {
     }
 
     override fun startKoin(koinApplication: KoinApplication): KoinApplication = synchronized(this) {
-        if (!isStartup) {
-            register(koinApplication)
-            koinApplication.createEagerInstances()
-            koinApplication.modules(findModules())//加载其他平台注册进来的模块
-            isStartup = true
-        }
+        register(koinApplication)
+        koinApplication.createEagerInstances()
+        koinApplication.modules(findModules())//加载其他平台注册进来的模块
         koinApplication
     }
 
@@ -84,6 +86,40 @@ object InstanceContext : KoinContext {
 interface InstanceKoinComponent : KoinComponent {
     override fun getKoin(): Koin = InstanceContext.get()
 }
+
+object InstanceKoinHelpers {
+    fun getKoin(): Koin = InstanceContext.get()
+}
+
+/**
+ * Get instance from Koin
+ * @param qualifier
+ * @param parameters
+ */
+inline fun <reified T : Any> InstanceKoinComponent.get(
+    qualifier: Qualifier? = null,
+    noinline parameters: ParametersDefinition? = null,
+): T {
+    return if (this is KoinScopeComponent) {
+        scope.get(qualifier, parameters)
+    } else {
+        getKoin().get(qualifier, parameters)
+    }
+}
+
+/**
+ * Lazy inject instance from Koin
+ * @param qualifier
+ * @param mode - LazyThreadSafetyMode
+ * @param parameters
+ */
+inline fun <reified T : Any> InstanceKoinComponent.inject(
+    qualifier: Qualifier? = null,
+    mode: LazyThreadSafetyMode = KoinPlatformTools.defaultLazyMode(),
+    noinline parameters: ParametersDefinition? = null,
+): Lazy<T> =
+    lazy(mode) { get<T>(qualifier, parameters) }
+
 
 /**
  * app模块调用此方法启动koin、加载其他平台注册的模块

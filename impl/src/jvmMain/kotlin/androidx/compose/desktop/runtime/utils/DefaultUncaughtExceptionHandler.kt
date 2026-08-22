@@ -2,7 +2,7 @@
 
 package androidx.compose.desktop.runtime.utils
 
-import androidx.compose.desktop.runtime.core.exit
+import androidx.compose.desktop.runtime.core.Singularity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -94,7 +94,7 @@ object DefaultUncaughtExceptionHandler : UncaughtExceptionHandler, WindowExcepti
     var title: String? = null
     var copyAction: ErrHandler? = null
     var continueAction: ErrHandler? = null
-    var closeAppAction: ErrHandler = { exit(true) }
+    var closeAppAction: ErrHandler = { Singularity.exitAppOrProcess(true) }
     var dialog: (Window?, Throwable) -> Unit = ::showErrDialog
 
     //<editor-fold desc="java错误捕获">

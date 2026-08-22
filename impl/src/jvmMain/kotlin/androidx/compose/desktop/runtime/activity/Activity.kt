@@ -12,7 +12,7 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.lifecycle.*
 import androidx.lifecycle.Lifecycle.Event.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.desktop.runtime.context.IContext
+import androidx.compose.desktop.runtime.context.Context
 import androidx.compose.desktop.runtime.context.ThemedContext
 import androidx.compose.desktop.runtime.window.ApplicationContent
 import androidx.compose.desktop.runtime.window.DxWindowHolder
@@ -22,10 +22,6 @@ import androidx.compose.ui.window.*
 import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.savedstate.SavedState
 import com.github.knightwood.slf4j.kotlin.logFor
-import com.github.knightwood.slf4j.kotlin.logger
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
-import kotlin.jvm.java
 
 /**
  * 启动模式，默认为标准模式，即多个实例可以同时存在。
@@ -118,10 +114,10 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      * 3. 生成mWindow，并调用[onCreate]方法
      */
     internal fun attach(
-        context: IContext,
+        context: Context,
         intent: Intent,
     ) {
-        mBase = context
+        attachBaseContext(context)
         this.intent = intent
         if (!this::windowHolder.isInitialized) {
             windowHolder = DxWindowHolder(this, windowManager(), intent.multiApplication)

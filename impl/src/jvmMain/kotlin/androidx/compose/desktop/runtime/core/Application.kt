@@ -3,15 +3,12 @@ package androidx.compose.desktop.runtime.core
 import androidx.annotation.CallSuper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
-import androidx.compose.desktop.runtime.activity.Activity
-import androidx.compose.desktop.runtime.activity.Intent
-import androidx.compose.desktop.runtime.context.ContextImpl
 import androidx.compose.desktop.runtime.context.ContextWrapper
-import androidx.compose.desktop.runtime.domain.Stop
-import androidx.compose.desktop.runtime.window.ApplicationContentWrapper
-import androidx.jvm.system.core.PathService
+import androidx.compose.desktop.runtime.context.Context
 import androidx.jvm.system.di.InstanceContext
-import androidx.jvm.system.di.startUp
+import androidx.jvm.system.di.InstanceKoinComponent
+import androidx.jvm.system.di.InstanceKoinHelpers
+import androidx.jvm.system.di.inject
 import androidx.lifecycle.Lifecycle.Event.ON_CREATE
 import androidx.lifecycle.LifecycleOwner
 import com.github.knightwood.slf4j.kotlin.error
@@ -21,29 +18,22 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jetbrains.skiko.MainUIDispatcher
+import org.koin.core.component.inject
+import org.koin.core.qualifier.named
 import kotlin.system.exitProcess
+
+private val logger = logFor("Application")
 
 /**
  * 作用类似于android中的application
  */
-open class Application : ContextWrapper(), LifecycleOwner {
-    private val logger = logFor("Application")
-    private var aware: Array<out Aware> = emptyArray()
+open class Application : ContextWrapper(), LifecycleOwner, InstanceKoinComponent {
     private val mutex = Mutex()
 
     /**
      * 此协程最终会随着进程结束而结束，不必担心生命周期
      */
-    val scope: CoroutineScope =
-        CoroutineScope(Dispatchers.Default) + SupervisorJob() + CoroutineName("Application")
-
-    /**
-     * 若为true，则onCreate将使用协程初始化所有的aware逻辑块
-     */
-    protected var async: Boolean = false
-
-    //内部使用
-    internal var fake: Boolean = true
+    val scope: CoroutineScope by inject<CoroutineScope>(named<Application>())
 
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
@@ -53,8 +43,8 @@ open class Application : ContextWrapper(), LifecycleOwner {
 
     //<editor-fold desc="生命周期">
 
-    init {
-        mBase = ContextImpl()
+    fun attach(context: Context) {
+        attachBaseContext(context)
     }
 
     /**
@@ -66,13 +56,31 @@ open class Application : ContextWrapper(), LifecycleOwner {
             lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
             lifecycleRegistry.currentState = Lifecycle.State.CREATED
         }
-        val f: () -> Unit = {
-            for (a in aware) {
-                a.onCreate(this@Application)
-            }
-        }
-        if (async) scope.launch { f.invoke() } else f.invoke()
         logger.info { "Application onCreate" }
+    }
+
+    /**
+     * 执行所有添加注册的[Aware]
+     */
+    private fun awareInvoke(
+        awares: Array<out Aware> = arrayOf(),
+    ) {
+        if (awares.isEmpty()) return
+        awares
+            .groupBy { aware -> aware is AsyncAware }
+            .forEach { (async, groupedAwares) ->
+                if (async) {
+                    scope.launch(Dispatchers.Unconfined) {
+                        groupedAwares.forEach { aware ->
+                            (aware as AsyncAware).onCreate(this@Application)
+                        }
+                    }
+                } else {
+                    groupedAwares.forEach { aware ->
+                        (aware as SyncAware).onCreate(this@Application)
+                    }
+                }
+            }
     }
 
     @CallSuper
@@ -87,46 +95,15 @@ open class Application : ContextWrapper(), LifecycleOwner {
      * 生成并配置Application-> 启动并配置activityManager、WindowManager等 ->MainActivity
      */
     internal fun prepare(
-        aware: Array<out Aware>,
-        applicationContent: ApplicationContentWrapper? = null,
+        awares: Array<out Aware>,
     ) {
         try {
-            fake = false
-            this.aware = aware
-            ServiceHolder.prepare()//启动所有的服务，比如窗口管理、activity管理
-            if (applicationContent != null) {
-                windowManager().contentWrapper = applicationContent
-            }
-            scope.launch {
-                ServiceHolder.runningState.collect {
-                    when (it) {
-                        is Stop -> {
-                            logger.info("exit...")
-                            release()
-                        }
-
-                        else -> {}
-                    }
-                }
-            }
             onCreate()
+            awareInvoke(awares)
         } catch (e: Exception) {
             logger.error(throwable = e) { "An error was encountered" }
             throw e
         }
-    }
-
-    /**
-     * 启动MainActivity，第一个显示出来的窗口
-     */
-    internal fun startMainActivity(
-        mainActivity: Class<out Activity>,
-        intentBuilder: (Intent.() -> Unit)?,
-    ) {
-        val intent = Intent(mainActivity)
-        intentBuilder?.invoke(intent)
-        startActivity(intent)//这里会运行在协程，注意调用时机
-        windowManager().prepare()
     }
     //</editor-fold>
 
@@ -145,82 +122,39 @@ open class Application : ContextWrapper(), LifecycleOwner {
                 activityManager().release()
                 val windowMgr = windowManager()
                 windowMgr.release()
-                ServiceHolder.release()
                 windowMgr.exitApplication()
             } catch (e: Exception) {
                 logger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }
-            }finally {
+            } finally {
+                InstanceContext.stopKoin()
+                scope.cancel("Application existing...")
                 exitProcess(0)
             }
         }
     }
-}
 
-/**
- * 从这里可以得到全局的application引用，用于上下文操作
- */
-internal lateinit var applicationInternal: Application
-private val lock = Any()
-fun exit(err: Boolean) {
-    if (::applicationInternal.isInitialized) applicationInternal.exitApp()
-    else exitProcess(if (err) 1 else 0)
-}
-//<editor-fold desc="与activity结合">
-/**
- * 一切的开端；一切的终结；
- *
- * @param aware 如果不想再application的onCreate函数中写太多逻辑，可以放到这里的初始化块
- * @param applicationContent 手动控制applicationScope内容显示
- * @param intentBuilder 启动主界面的参数
- * @param mainActivity 主界面
- * @param applicationClass 应用程序类，默认为Application
- */
-inline fun <reified T : Activity, reified R : Application> startApplication(
-    vararg aware: Aware,
-    applicationContent: ApplicationContentWrapper? = null,
-    noinline intentBuilder: (Intent.() -> Unit)? = null,
-) {
-    startApplication(
-        T::class.java, R::class.java,
-        aware = aware,
-        applicationContent = applicationContent,
-        intentBuilder = intentBuilder
-    )
-}
-
-/**
- * 一切的开端；一切的终结；
- *
- * @param mainActivity 主界面
- * @param applicationClass 应用程序类，默认为Application
- * @param aware 如果不想再application的onCreate函数中写太多逻辑，可以放到这里的初始化块
- * @param applicationContent 手动控制applicationScope内容显示
- * @param intentBuilder 启动主界面的参数
- */
-fun startApplication(
-    mainActivity: Class<out Activity>,
-    applicationClass: Class<out Application> = Application::class.java,
-    vararg aware: Aware,
-    applicationContent: ApplicationContentWrapper? = null,
-    intentBuilder: (Intent.() -> Unit)? = null,
-) {
-    PathService.anyClass = mainActivity//用于获取程序目录
-    synchronized(lock) {
-        InstanceContext.startUp()
-        if (!::applicationInternal.isInitialized || applicationInternal.fake) {
-            // 创建Application实例，并初始化；不要在此处给applicationInternal赋值，因为阻塞会导致永远不会赋值
-            applicationClass.getDeclaredConstructor().newInstance().also {
-                applicationInternal = it
-                it.prepare(aware, applicationContent)
-                it.startMainActivity(mainActivity, intentBuilder)
-                //只要到达那个地方 it.exit() //如果都结束了，自然会走到这一步
-            }
-        } else {
-            throw IllegalStateException("Application already started")
-        }
+    companion object {
+        const val TAG = "ServiceInstanceProvider"
     }
 }
-//</editor-fold>
+
+/**
+ * 在ui线程运行代码块
+ *
+ * @param lock 如果不为null，则运行代码块时，会先获取锁，然后运行代码块，最后释放锁
+ * @param block 需要运行在ui线程的代码块
+ */
+fun Application.runOnUIThread(
+    lock: Mutex? = null,
+    block: suspend CoroutineScope.() -> Unit,
+) {
+    scope.launch(MainUIDispatcher) {
+        lock?.let {
+            it.withLock { block() }
+        } ?: block()
+    }
+}
+
 /**
  * 利用[Application.scope]在ui线程运行代码块
  *
@@ -231,15 +165,10 @@ fun runOnUIThread(
     lock: Mutex? = null,
     block: suspend CoroutineScope.() -> Unit,
 ) {
-    applicationInternal.scope.launch {
-        withContext(MainUIDispatcher) {
-            if (lock != null) {
-                lock.withLock {
-                    block()
-                }
-            } else {
-                block()
-            }
-        }
+    val scope = InstanceKoinHelpers.getKoin().get<CoroutineScope>(named<Application>())
+    scope.launch(MainUIDispatcher) {
+        lock?.let {
+            it.withLock { block() }
+        } ?: block()
     }
 }
