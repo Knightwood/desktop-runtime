@@ -1,7 +1,6 @@
 package androidx.compose.desktop.runtime.fragment
 
-import androidx.compose.desktop.runtime.activity.SaveStateHolder
-import androidx.compose.desktop.runtime.activity.ISaveStateHolder
+import androidx.compose.desktop.runtime.savestate.Token
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.github.knightwood.slf4j.kotlin.kLogger
@@ -11,10 +10,10 @@ import java.util.Collections
 
 interface IFragmentComponentManager {
     fun provideLifeCycle(lifecycleOwner: LifecycleOwner)
-    fun <T : Fragment> register(cls: Class<T>, key: String? = null): Fragment
-    fun unregister(key: String)
+    fun <T : Fragment> register(cls: Class<T>, key: Token? = null): Fragment
+    fun unregister(key: Token)
     fun <T : Fragment> unregister(component: Fragment)
-    fun fragment(key: String): Fragment
+    fun fragment(key: Token): Fragment
     fun release()
 
 }
@@ -27,33 +26,32 @@ class FragmentManager() : IFragmentComponentManager {
     val logger = logFor("组件管理")
     private lateinit var lifecycleOwner: LifecycleOwner
     private val stackManager: ScreenComponentStackManager = ScreenComponentStackManager()
-    private val bundleHolder: ISaveStateHolder by lazy { SaveStateHolder() }
 
     override fun provideLifeCycle(lifecycleOwner: LifecycleOwner) {
         this.lifecycleOwner = lifecycleOwner
     }
 
-    override fun <T : Fragment> register(cls: Class<T>, key: String?): Fragment {
+    override fun <T : Fragment> register(cls: Class<T>, key: Token?): Fragment {
         val fragment = cls.getDeclaredConstructor().newInstance()
         if (key != null) {
-            fragment.uuid = key
+            fragment.token = key
         }
         stackManager.register<T>(fragment)
-        fragment.attach(lifecycleOwner, bundleHolder)
+        fragment.attach(lifecycleOwner)
         lifecycleOwner.lifecycleScope.launch {
             fragment.released.collect {
                 if (it) {
                     //不论是手动结束组件，还是因为父组件的生命周期结束而跟随结束，
                     //都已经在内部对资源释放了，这里只需要移除引用，不需要再次调用组件的release方法
 //                    logger.info("卸载组件")
-                    stackManager.unregister(fragment.uuid, false)
+                    stackManager.unregister(fragment.token, false)
                 }
             }
         }
         return fragment
     }
 
-    override fun unregister(key: String) {
+    override fun unregister(key: Token) {
         stackManager.unregister(key)
     }
 
@@ -61,13 +59,12 @@ class FragmentManager() : IFragmentComponentManager {
         stackManager.unregister<T>(component)
     }
 
-    override fun fragment(key: String): Fragment {
+    override fun fragment(key: Token): Fragment {
         return stackManager.get(key)
     }
 
     override fun release() {
         stackManager.map.clear()
-        bundleHolder.clear()
     }
 
 }
@@ -76,21 +73,21 @@ class FragmentManager() : IFragmentComponentManager {
 class ScreenComponentStackManager {
 
     //存储所有已注册的组件
-    internal val map = Collections.synchronizedMap<String, Fragment>(mutableMapOf())
+    internal val map = Collections.synchronizedMap<Token, Fragment>(mutableMapOf())
 
     fun <T : Fragment> register(component: Fragment) {
-        if (map.containsKey(component.uuid)) {
-            kLogger.info("${component.uuid}  已存在")
+        if (map.containsKey(component.token)) {
+            kLogger.info("${component.token}  已存在")
             return
         }
-        map[component.uuid] = component
+        map[component.token] = component
     }
 
     fun <T : Fragment> unregister(component: Fragment, release: Boolean = true) {
-        unregister(component.uuid, release)
+        unregister(component.idn, release)
     }
 
-    fun unregister(key: String, release: Boolean = true) {
+    fun unregister(key: Token, release: Boolean = true) {
         if (!map.containsKey(key)) {
             return
         }
@@ -102,7 +99,7 @@ class ScreenComponentStackManager {
         }
     }
 
-    fun get(key: String): Fragment {
+    fun get(key: Token): Fragment {
         return map[key]!!
     }
 

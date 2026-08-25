@@ -2,24 +2,18 @@ package androidx.compose.desktop.runtime.core
 
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.activity.ActivityManager
-import androidx.compose.desktop.runtime.activity.Intent
+import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.context.ContextImpl
 import androidx.compose.desktop.runtime.di.getServiceInstance
 import androidx.compose.desktop.runtime.window.ApplicationContentWrapper
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.jvm.system.core.PathService
 import androidx.jvm.system.di.InstanceContext
-import androidx.jvm.system.di.getPlatformInstance
 import androidx.jvm.system.di.startUp
 import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import org.jetbrains.skiko.MainUIDispatcher
-import org.koin.core.component.KoinComponent
 import org.koin.core.logger.Level
 import org.koin.core.logger.Level.ERROR
 import org.koin.core.logger.Level.INFO
@@ -102,7 +96,7 @@ object Singularity {
             }
             //启动所有的服务，比如窗口管理、activity管理
             InstanceContext.get().run {
-                get<ActivityManager>()
+                get<ActivityManager>().prepare()
                 get<WindowManager>().also { windowManager ->
                     //将传入compose函数作为ApplicationScope根视图
                     windowManager.contentWrapper = applicationContent
@@ -132,7 +126,7 @@ object Singularity {
         mainActivity: Class<out Activity>,
         intentBuilder: (Intent.() -> Unit)?,
     ) {
-        val intent = Intent(mainActivity)
+        val intent = Intent(this@Singularity,mainActivity)
         intentBuilder?.invoke(intent)
         startActivity(intent)//这里会运行在协程，注意调用时机
     }

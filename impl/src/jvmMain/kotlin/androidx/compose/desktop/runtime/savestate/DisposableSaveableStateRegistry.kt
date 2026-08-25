@@ -1,9 +1,10 @@
 @file:Suppress("UNCHECKED_CAST")
 
-package androidx.compose.desktop.runtime.domain
+package androidx.compose.desktop.runtime.savestate
 
 import androidx.compose.desktop.runtime.context.Context
 import androidx.compose.desktop.runtime.context.LocalContext
+import androidx.compose.desktop.runtime.domain.ActivityLifecycleOwner
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.saveable.SaveableStateRegistry
@@ -76,7 +77,7 @@ fun ProvideAndroidCompositionLocalsForDialog(
  * ```
  * 我们activity的生命周期实际上观察composeContainer（顶层的Window函数）提供的Lifecycle，
  * 因此我们不能覆盖掉LocalLifecycleOwner，
- * 在这里只需要使用[ActivityLifecycleOwner]提供activity的lifecycleOwner即可
+ * 在这里只需要使用[androidx.compose.desktop.runtime.domain.ActivityLifecycleOwner]提供activity的lifecycleOwner即可
  *
  * @param activityLifecycleOwner activity的lifecycleOwner
  */

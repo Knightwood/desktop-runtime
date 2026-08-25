@@ -2,7 +2,8 @@ package com.github.knightwood.example.acts
 
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.material3.Text
-import androidx.compose.desktop.runtime.activity.Intent
+import androidx.compose.desktop.runtime.core.intent.Intent
+import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.desktop.runtime.utils.err.SwingErrorDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,7 +34,7 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.random.Random
 
 
-open class TestActivity : Activity() {
+open class MainActivity : Activity() {
     val randoms = Random.nextInt(0, 11)
     var tag = "Activity$randoms"
     private val logger = logFor(tag)
@@ -51,12 +52,9 @@ open class TestActivity : Activity() {
                     Column {
                         Text(text = "rememberSavable测试")
                         Button(onClick = {
-                            val intent = Intent(this@TestActivity, StateTestActivity::class.java)
-                            //因为大多数时候我们不需要保存恢复数据，clearSaveState默认为true
-                            //但我们这里希望保存恢复数据，因此需要设置clearSaveState为false
-                            intent.clearSaveState = false
+                            val intent = Intent(this@MainActivity, StateTestActivity::class.java)
                             //需要注意，activity取回保存起来的数据依靠uuid，因此需要在这里设置uuid
-                            intent.uuid = "11"
+                            intent.token = Token("11")
                             startActivity(intent)
                         }) {
                             Text("点击启动状态测试页面")
@@ -65,15 +63,18 @@ open class TestActivity : Activity() {
                         HorizontalDivider()
                         Button(onClick = {
                             val intent = Intent(
-                                this@TestActivity,
+                                this@MainActivity,
                                 VMTestActivity::class.java
-                            ).configuration {
-                                clearSaveState = false
-                                uuid = "12"
-                                putData("randoms" to Random.nextInt(12, 20))
+                            ).apply {
+                                token = Token("12")
+                                data {
+                                    putInt("random", Random.nextInt(12, 20))
+                                }
                             }
-                            startActivityForResult(intent) { result, data ->
-                                logger.info("result: $result, data: $data")
+                            scope.launch {
+                                startActivityForResult(intent) { result, data ->
+                                    logger.info("result: $result, data: $data")
+                                }
                             }
                         }) {
                             Text("点击启动vm测试页面")
@@ -82,9 +83,8 @@ open class TestActivity : Activity() {
                         HorizontalDivider()
                         Button(onClick = {
                             val intent =
-                                Intent(this@TestActivity, TestFragmentActivity::class.java)
-                            intent.clearSaveState = false
-                            intent.uuid = "13"
+                                Intent(this@MainActivity, TestFragmentActivity::class.java)
+                            intent.token = Token("13")
                             startActivity(intent)
                         }) {
                             Text("点击启动fragment测试页面")

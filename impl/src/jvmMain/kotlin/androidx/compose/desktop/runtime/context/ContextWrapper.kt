@@ -1,8 +1,8 @@
 package androidx.compose.desktop.runtime.context
 
 import androidx.compose.desktop.runtime.activity.ActivityManager
-import androidx.compose.desktop.runtime.activity.Intent
-import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
+import androidx.compose.desktop.runtime.core.intent.Intent
+import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
 import kotlin.reflect.KClass
@@ -31,8 +31,8 @@ open class ContextWrapper : Context() {
         intent: Intent,
     ) = mBase.startActivity(intent)
 
-    override fun startActivityForResult(
+    override suspend fun startActivityForResult(
         intent: Intent,
-        block: ActivityResultCallback,
-    ) = mBase.startActivityForResult(intent, block)
+        callback: ActivityResultCallback,
+    ) = mBase.startActivityForResult(intent, callback)
 }

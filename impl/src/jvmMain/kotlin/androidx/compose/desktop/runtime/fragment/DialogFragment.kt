@@ -1,7 +1,5 @@
 package androidx.compose.desktop.runtime.fragment
 
-import androidx.compose.desktop.runtime.activity.SaveStateHolder
-import androidx.compose.desktop.runtime.activity.ISaveStateHolder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.painter.Painter
@@ -84,7 +82,7 @@ abstract class DialogFragment : Fragment() {
     override fun show() {
         super.show()
         if (released.value) {
-            kLogger.error("dialog component is released,cannot show. uuid: $uuid")
+            kLogger.error("dialog component is released,cannot show. uuid: $token")
         }
     }
 
@@ -92,10 +90,9 @@ abstract class DialogFragment : Fragment() {
         fun <T : DialogFragment> makeDialog(
             cls: Class<T>,
             lifecycle: LifecycleOwner,
-            iSaveStateHolder: ISaveStateHolder = SaveStateHolder()
         ): T {
             val fragment = cls.getDeclaredConstructor().newInstance()
-            fragment.attach(lifecycle, iSaveStateHolder)
+            fragment.attach(lifecycle, )
             return fragment
         }
     }

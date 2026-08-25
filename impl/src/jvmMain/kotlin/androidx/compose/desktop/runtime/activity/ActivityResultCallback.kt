@@ -1,10 +1,11 @@
-package androidx.compose.desktop.runtime.activity.result
+package androidx.compose.desktop.runtime.activity
 
+import androidx.core.bundle.Bundle
 
 
 class ActivityResult(
     val resultCode: Int,
-    val data: Any?
+    val data: Bundle?
 )
 
 

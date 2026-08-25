@@ -4,7 +4,7 @@ package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
 import androidx.compose.desktop.runtime.core.Singularity
-import androidx.compose.desktop.runtime.domain.ProvideAndroidCompositionLocals
+import androidx.compose.desktop.runtime.savestate.ProvideAndroidCompositionLocals
 import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -206,9 +206,6 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
     @CallSuper
     override fun onDestroy() {
         super.onDestroy()
-        if (intent.clearSaveState) {
-            activityManager().clearSaveState(uuid)
-        }
     }
 
     /**
@@ -268,7 +265,7 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
 
                 //适配compose 1.9，我们需要使用自己的状态存储恢复覆盖掉kmp内部的。
                 ProvideAndroidCompositionLocals(
-                    id = uuid.toString(),
+                    id = idn.toString(),
                     this@ComponentActivity,
                     this@ComponentActivity,
                     this@ComponentActivity,

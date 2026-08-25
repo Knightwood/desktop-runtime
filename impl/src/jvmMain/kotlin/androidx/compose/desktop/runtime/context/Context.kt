@@ -1,7 +1,8 @@
 package androidx.compose.desktop.runtime.context
 
 import androidx.compose.desktop.runtime.activity.*
-import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
+import androidx.compose.desktop.runtime.core.intent.Intent
+import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -39,42 +40,9 @@ abstract class Context {
     ) {
     }
 
-    open fun startActivityForResult(
+    open suspend fun startActivityForResult(
         intent: Intent,
-        block: ActivityResultCallback,
+        callback: ActivityResultCallback,
     ) {
     }
-}
-
-fun <DATA> Context.startActivity(
-    to: Class<out Activity>,
-    data: DATA? = null,
-    launchMode: LaunchMode = LaunchMode.STANDARD,
-) {
-    startActivity(Intent(to, data, launchMode))
-}
-
-fun <DATA> Context.startActivity(
-    to: Class<out Activity>, from: Any,
-    data: DATA?,
-    launchMode: LaunchMode = LaunchMode.STANDARD,
-) {
-    startActivity(Intent(from, to, data, launchMode))
-}
-
-fun <DATA> Context.startActivity(
-    to: Class<out Activity>,
-    from: Class<*>,
-    pair: Pair<LaunchMode, DATA?>? = null,
-) {
-    val (launchMode, data) = pair ?: Pair(LaunchMode.STANDARD, null)
-    startActivity(Intent(from, to, data, launchMode))
-}
-
-fun <DATA> Context.startActivity(
-    to: Class<out Activity>,
-    pair: Pair<LaunchMode, DATA?>? = null,
-) {
-    val (launchMode, data) = pair ?: Pair(LaunchMode.STANDARD, null)
-    startActivity(Intent(to, data, launchMode))
 }

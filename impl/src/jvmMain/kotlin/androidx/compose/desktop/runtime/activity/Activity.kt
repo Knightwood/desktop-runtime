@@ -3,8 +3,7 @@
 package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
-import androidx.compose.desktop.runtime.activity.result.ActivityResult
-import androidx.compose.desktop.runtime.activity.result.ObservableFlow
+import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.painter.Painter
@@ -14,13 +13,19 @@ import androidx.lifecycle.Lifecycle.Event.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.desktop.runtime.context.Context
 import androidx.compose.desktop.runtime.context.ThemedContext
+import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver
+import androidx.compose.desktop.runtime.savestate.Token
+import androidx.compose.desktop.runtime.savestate.WeakReferenceDelegate
 import androidx.compose.desktop.runtime.window.ApplicationContent
 import androidx.compose.desktop.runtime.window.DxWindowHolder
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.*
+import androidx.core.bundle.bundleOf
 import androidx.jvm.system.di.InstanceKoinComponent
+import androidx.jvm.system.di.inject
 import androidx.savedstate.SavedState
+import androidx.savedstate.SavedStateRegistry
 import com.github.knightwood.slf4j.kotlin.logFor
 
 /**
@@ -68,8 +73,9 @@ enum class LaunchMode {
  * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver, InstanceKoinComponent {
+    val stateSaver by inject<ApplicationSaveStateSaver>()
     lateinit var windowHolder: DxWindowHolder
-    lateinit var intent: Intent
+    var intent by WeakReferenceDelegate<Intent>()
     val window: ComposeWindow
         get() = windowHolder.composeWindow
 
@@ -79,18 +85,29 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         get() = lifecycleRegistry
 
     /**
-     * uuid是activity的唯一标识，可以用于activity保存和回复状态，从[ActivityManager]获取实例等
-     *
-     * 如果启动模式为单例，又没指定uuid，则使用目标activity class的canonicalName
+     * 每个activity都有唯一的token,也就是id
+     * 使用此id关联保存的状态,以便下次启动后恢复状态
+     * 如果此id为null,则不使用状态保存和恢复功能
      */
-    val uuid: String
-        get() = intent.uuid
+    internal val token: Token?
+        get() = intent?.token
 
     /**
-     * 用于保存和恢复activity的状态
+     * 上面的token与状态保存和恢复相关,如果不需要使用状态保存和恢复功能,则token为null,
+     * 此时就无法使用token标识activity的唯一性了,因此需要一个回退字段标识唯一性.
      */
-    val savedState
-        get() = activityManager().obtainSaveState(uuid)
+    internal val idn: Token = Token(this.toString())
+
+    /**
+     * 在[ApplicationSaveStateSaver]中使用token注册一个SaveState,用于存放所有需要保存的状态
+     * 状态栏会来自[onSaveInstanceState]、[SavedStateRegistry]等
+     * 调用此方法时需要确保已经给intent赋过值
+     */
+    internal val savedState: SavedState?
+        get() {
+            val id = token ?: return null
+            return stateSaver.getSaveState(id)
+        }
 
     /**
      * activity实现了IContext接口
@@ -122,9 +139,9 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         if (!this::windowHolder.isInitialized) {
             windowHolder = DxWindowHolder(this, windowManager(), intent.multiApplication)
         }
-        activityManager().register(uuid, this@Activity)
+        activityManager().register(idn, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-        onCreate(activityManager().obtainSavestateNullable(uuid))
+        onCreate(savedState)
     }
 
     /**
@@ -217,15 +234,14 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     @CallSuper
     open fun onDestroy() {
-        onSaveInstanceState(savedState)
+        savedState?.let { onSaveInstanceState(it) }
 //        val saved = window.saveState()
 //        if (saved != null) {
 //            activityManager().setBundle(uuid, saved)
 //        }
         finished = true
-        activityManager().remove(uuid)
+        activityManager().remove(idn)
 //        windowHolder.release()
-        internalResultFlow.clear()
     }
 
     /**
@@ -265,20 +281,22 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     }
 
     //<editor-fold desc="result callback">
-    internal var internalResultFlow: ObservableFlow<ActivityResult> = ObservableFlow()
+    internal val internalResultFlow
+        get() = intent?.getMailBox<ActivityResult>(RESULT_FLOW)
+            ?: throw IllegalStateException("activity_result_flow can't be null")
 
     /**
      * @param resultCode 结果码，[Activity.SUCCESS]表示成功，[Activity.FAILED]表示失败
      */
     open fun setResult(resultCode: Int, data: Any) {
-        internalResultFlow.setValue(ActivityResult(resultCode, data))
+        internalResultFlow.tryEmit(ActivityResult(resultCode, bundleOf("data" to data)))
     }
 
     /**
      * @param resultCode 结果码，[Activity.SUCCESS]表示成功，[Activity.FAILED]表示失败
      */
     open fun setResult(resultCode: Int) {
-        internalResultFlow.setValue(ActivityResult(resultCode, null))
+        internalResultFlow.tryEmit(ActivityResult(resultCode, null))
     }
 
     //</editor-fold>
@@ -343,6 +361,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     }
 
     companion object {
+        const val RESULT_FLOW = "activity_result_flow"
         const val SUCCESS = 1
         const val FAILED = 0
     }

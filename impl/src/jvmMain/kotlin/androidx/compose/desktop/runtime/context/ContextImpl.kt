@@ -1,13 +1,13 @@
 package androidx.compose.desktop.runtime.context
 
 import androidx.compose.desktop.runtime.activity.*
-import androidx.compose.desktop.runtime.activity.result.ActivityResultCallback
+import androidx.compose.desktop.runtime.core.intent.Intent
+import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.core.Singularity
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.jvm.system.di.InstanceKoinComponent
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 import kotlin.reflect.KClass
 
 open class ContextImpl() : Context(), InstanceKoinComponent {
@@ -34,41 +34,26 @@ open class ContextImpl() : Context(), InstanceKoinComponent {
     override fun startActivity(
         intent: Intent,
     ) {
-        startActivityInner(intent)
+        getKoin().get<ActivityManager>().launchActivity(intent)
     }
-
-    override fun startActivityForResult(
-        intent: Intent,
-        block: ActivityResultCallback,
-    ) {
-        startActivityInner(intent, block)
-    }
-
     /**
      * 在[ActivityManager.scope]中生成并运行activity，如此，activity就跑在ui（主）线程上
      */
-    private fun startActivityInner(
+    override suspend fun startActivityForResult(
         intent: Intent,
-        callback: ActivityResultCallback? = null,
+        callback: ActivityResultCallback,
     ) {
-        if (intent.launchMode == LaunchMode.SINGLE_INSTANCE) {
-            intent.uuid = intent.targetActivity.canonicalName
-            val old = activityManager().get(intent.uuid)
-            if (old != null) {
-                old.onReStart(intent)
-                return
+        coroutineScope {
+            intent.collectResult {
+                callback.invoke(it.resultCode, it.data)
             }
         }
-        activityManager().scope.launch {
-            val activity = intent.targetActivity.getDeclaredConstructor().newInstance()
-            activity.attach(this@ContextImpl, intent)
-            if (callback != null) {
-                launch(Dispatchers.Default) {
-                    activity.internalResultFlow.observe {
-                        callback.invoke(it.resultCode, it.data)
-                    }
-                }
-            }
+        getKoin().get<ActivityManager>().launchActivity(intent)
+    }
+
+    companion object {
+        fun createBaseContextForActivity(): Context {
+            return ContextImpl()
         }
     }
 }

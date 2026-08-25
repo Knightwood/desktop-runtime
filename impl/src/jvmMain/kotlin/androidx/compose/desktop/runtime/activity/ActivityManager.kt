@@ -1,62 +1,94 @@
 package androidx.compose.desktop.runtime.activity
 
+import androidx.compose.desktop.runtime.context.ContextImpl
+import androidx.compose.desktop.runtime.core.intent.IOperateIntentProcessor
+import androidx.compose.desktop.runtime.core.intent.IntentProcessor
+import androidx.compose.desktop.runtime.core.intent.LaunchActivityIntent
+import androidx.compose.desktop.runtime.savestate.Token
+import androidx.jvm.system.di.InstanceKoinComponent
+import androidx.jvm.system.di.inject
 import androidx.savedstate.SavedState
 import androidx.savedstate.savedState
-import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.plus
-import org.jetbrains.skiko.MainUIDispatcher
+import kotlinx.coroutines.launch
+import org.koin.core.parameter.parametersOf
+import org.koin.core.qualifier.named
 
-class SaveStateHolder : ISaveStateHolder {
+interface IActivityLauncher {
+    fun start(intent: LaunchActivityIntent)
+}
+
+/**
+ * 实现解析intent,启动activity功能
+ * @param stack activity栈
+ */
+internal class ActivityLauncher(
+    val stack: List<Activity>,
+    val coroutineScope: CoroutineScope,
+) : IActivityLauncher, InstanceKoinComponent {
+    val launchActivityIntentProcessor = object : IOperateIntentProcessor<LaunchActivityIntent> {
+        override fun process(intent: LaunchActivityIntent): Boolean {
+            start(intent)
+            return true
+        }
+    }
+
     /**
-     * 存储SaveState的bundle
+     * 实现启动activity逻辑
+     * 所有地方的启动activity最终都会走到这里
      */
-    val saveStateSaverMap: MutableMap<String, SavedState> = mutableMapOf()
-
-    override fun obtainSaveState(uuid: String): SavedState {
-        return saveStateSaverMap.getOrPut(uuid) { savedState() }
-    }
-
-    override fun obtainSavestateNullable(uuid: String): SavedState? {
-        return saveStateSaverMap[uuid]
-    }
-
-    override fun clearSaveState(uuid: String) {
-        saveStateSaverMap.remove(uuid)
-    }
-
-    override fun clear() {
-        saveStateSaverMap.clear()
-    }
-
-    override fun setSaveState(uuid: String, savedState: SavedState) {
-        saveStateSaverMap[uuid] = savedState
+    override fun start(intent: LaunchActivityIntent) {
+        if (intent.launchMode == LaunchMode.SINGLE_INSTANCE) {
+            val old = stack
+                .map { activity -> activity::class.java to activity }
+                .find { (clazz, instance) ->
+                    clazz.name == intent.targetActivity.name
+                }
+            if (old != null) {
+                val (clazz, instnace) = old
+                instnace.onReStart(intent)
+                return
+            }
+        }
+        coroutineScope.launch {
+            val activity = intent.targetActivity.getDeclaredConstructor().newInstance()
+            activity.attach(ContextImpl.createBaseContextForActivity(), intent)
+        }
     }
 }
 
 /**
  * 管理所有的activity
  */
-class ActivityManager : ISaveStateHolder by SaveStateHolder() {
-    val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
+class ActivityManager : InstanceKoinComponent {
+    val scope by inject<CoroutineScope>(named<ActivityManager>())
 
     // activity map
-    private val activityMap: MutableMap<String, Activity> = mutableMapOf()
+    private val activityMap: MutableMap<Token, Activity> = mutableMapOf()
 
     //任务栈
     internal val stack = mutableListOf<Activity>()
     val activityStack: List<Activity> get() = stack
 
+    private val launcherManager by inject<ActivityLauncher>() {
+        parametersOf(stack, scope)
+    }
+
+    fun launchActivity(intent: LaunchActivityIntent) {
+        launcherManager.start(intent)
+    }
 
     /**
      * 好吧，目前没有可实现的
      */
-    fun prepare() {
-
+    fun prepare(): ActivityManager {
+        getKoin().get<IntentProcessor>().registerProcessor(
+            launcherManager.launchActivityIntentProcessor
+        )
+        return this
     }
 
-    operator fun get(uuid: String?): Activity? {
+    operator fun get(uuid: Token?): Activity? {
         return activityMap[uuid]
     }
 
@@ -67,16 +99,15 @@ class ActivityManager : ISaveStateHolder by SaveStateHolder() {
         return activityMap.values.find { it.javaClass == cls }
     }
 
-    fun register(uuid: String, activity: Activity) {
+    fun register(uuid: Token, activity: Activity) {
         activityMap[uuid] = activity
         stack.add(activity)
     }
 
-    fun remove(uuid: String) {
+    fun remove(uuid: Token) {
         activityMap.remove(uuid)
         stack.remove(activityMap[uuid])
     }
-
 
     fun release() {
         activityMap.values.forEach {

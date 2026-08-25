@@ -63,6 +63,7 @@ kotlin {
             implementation(compose.desktop.currentOs){
                 exclude("org.jetbrains.compose.material")
             }
+            implementation(libs.core.bundle)
             implementation(libs.kotlin.coroutines.swing)
             implementation(project(":impl"))
             implementation(project(":system-impl:spi"))

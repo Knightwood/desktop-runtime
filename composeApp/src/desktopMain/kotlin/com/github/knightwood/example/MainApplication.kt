@@ -1,6 +1,7 @@
 package com.github.knightwood.example
 
 import androidx.compose.desktop.runtime.core.Application
+import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver
 import androidx.jvm.system.core.AppInfoProvider
 import androidx.jvm.system.di.InstanceContext
 import androidx.jvm.system.di.startUp
@@ -36,6 +37,9 @@ class MainApplication : Application() {
             appName = "测试"
             isDevMode = false
         }
+        // 从磁盘中读取保存的状态数据,恢复到状态存储器,以便activity打开后能恢复状态
+        getService(ApplicationSaveStateSaver::class)
+            .import(mutableMapOf())
         startKoin {
             logger(object : org.koin.core.logger.Logger() {
                 override fun display(level: Level, msg: MESSAGE) {
@@ -90,6 +94,14 @@ class MainApplication : Application() {
         val context = LoggerFactory.getILoggerFactory() as LoggerContext
         context.stop() // 确保所有日志都被刷新
         ProcessLocker.unlock()
+
+        // application结束时将状态保存到磁盘
+        // 这里只是为了演示，只打印了一下
+        getService(ApplicationSaveStateSaver::class)
+            .export()
+            .also {
+                logger.info("Application save state saver changed to $it")
+            }
     }
 
     companion object {

@@ -1,8 +1,11 @@
 package androidx.compose.desktop.runtime.fragment
 
 import androidx.annotation.CallSuper
-import androidx.compose.desktop.runtime.activity.ISaveStateHolder
+import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver
+import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.desktop.runtime.viewmodel.createVM
+import androidx.jvm.system.di.InstanceKoinComponent
+import androidx.jvm.system.di.inject
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import java.util.UUID
+import kotlin.getValue
 import kotlin.reflect.KClass
 
 /**
@@ -39,22 +43,31 @@ import kotlin.reflect.KClass
  *
  * }
  *
- * val screen =ScreenComponent()
- * screen.prepare(lifecycleOwner.lifecycle, componentBundle)
+ * val screen = ScreenComponent()
+ * screen.prepare(lifecycleOwner.lifecycle)
  * ```
  */
-abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, LifecycleEventObserver,
-    HasDefaultViewModelProviderFactory, SavedStateRegistryOwner {
-    /**
-     * uuid用于恢复bundle数据
-     */
-    var uuid: String = UUID.randomUUID().toString()
-    lateinit var bundleHolder: ISaveStateHolder
+abstract class IScreenComponent(val token: Token? = null) : ViewModelStoreOwner,
+    LifecycleOwner, LifecycleEventObserver,
+    HasDefaultViewModelProviderFactory, SavedStateRegistryOwner,
+    InstanceKoinComponent {
+    val stateSaver by inject<ApplicationSaveStateSaver>()
 
     /**
-     * 是否在结束后清除bundle，大多数时候我们不需要恢复状态特性，因此默认为true。
+     * 在[ApplicationSaveStateSaver]中使用token注册一个SaveState,用于存放所有需要保存的状态
+     * 状态栏会来自[onSaveInstanceState]、[SavedStateRegistry]等
+     * 调用此方法时需要确保已经给intent赋过值
      */
-    var clearBundle: Boolean = true
+    internal val savedState: SavedState?
+        get() {
+            val id = token ?: return null
+            return stateSaver.getSaveState(id)
+        }
+    /**
+     * 上面的token与状态保存和恢复相关,如果不需要使用状态保存和恢复功能,则token为null,
+     * 此时就无法使用token标识activity的唯一性了,因此需要一个回退字段标识唯一性.
+     */
+    internal val idn: Token = Token(this.toString())
 
     // 组件是否已经释放
     val released: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -103,10 +116,9 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
     /**
      * 在生成实例后，调用此方法开始此类的生命周期流程
      */
-    fun prepare(parentLifecycle: Lifecycle? = null, bundleHolder: ISaveStateHolder) {
-        this.bundleHolder = bundleHolder
+    fun prepare(parentLifecycle: Lifecycle? = null) {
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-        onCreate(bundleHolder.obtainSavestateNullable(uuid))
+        onCreate(savedState)
         parentLifecycle?.let {
             this.parentLifecycle = WeakReference(it)
             it.addObserver(this)
@@ -151,11 +163,7 @@ abstract class IScreenComponent() : ViewModelStoreOwner, LifecycleOwner, Lifecyc
 
     @CallSuper
     open fun onDestroy() {
-        if (clearBundle) {
-            bundleHolder.clearSaveState(uuid)
-        } else {
-            onSaveInstanceState(bundleHolder.obtainSaveState(uuid))
-        }
+        savedState?.let { onSaveInstanceState(it) }
         lifecycleScope.launch {
             released.emit(true)
 //            logger.info("释放组件，uuid:$uuid")

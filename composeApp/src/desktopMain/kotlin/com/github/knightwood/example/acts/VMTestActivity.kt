@@ -60,7 +60,7 @@ class VMTestActivity : ComponentActivity() {
 
     val vm1: TestViewModel1 by viewModels<TestViewModel1>(extrasProducer = {
         val extras = MutableCreationExtras()
-        extras[TestViewModel1.key] = intent.getData<Pair<String,Int>>()?.second?:11//从 intent中读取数据
+        extras[TestViewModel1.key] = intent?.getData<Int>("random")?:11//从 intent中读取数据
         extras[SAVED_STATE_REGISTRY_OWNER_KEY] = this
         extras[VIEW_MODEL_STORE_OWNER_KEY] = this
         extras
