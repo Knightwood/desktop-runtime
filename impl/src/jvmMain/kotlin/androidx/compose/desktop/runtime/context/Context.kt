@@ -6,6 +6,7 @@ import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.compose.runtime.staticCompositionLocalOf
+import kotlinx.coroutines.CoroutineScope
 import kotlin.reflect.KClass
 
 val LocalContext = staticCompositionLocalOf<Context> {
@@ -25,10 +26,13 @@ abstract class Context {
 
     abstract val applicationContext: Context
 
-    abstract fun<T : Any> getService(cls: KClass<T>): T
+    abstract fun <T : Any> getService(cls: KClass<T>): T
 
     abstract fun windowManager(): WindowManager
     abstract fun activityManager(): ActivityManager
+
+    abstract val applicationCoroutineScope: CoroutineScope
+    abstract val mainCoroutineScope: CoroutineScope
 
     /**
      * 结束软件生命

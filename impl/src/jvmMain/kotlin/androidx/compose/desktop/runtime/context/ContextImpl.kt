@@ -6,8 +6,11 @@ import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.core.Singularity
 import androidx.compose.desktop.runtime.window.WindowManager
+import androidx.compose.ui.window.application
 import androidx.jvm.system.di.InstanceKoinComponent
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import org.koin.core.qualifier.named
 import kotlin.reflect.KClass
 
 open class ContextImpl() : Context(), InstanceKoinComponent {
@@ -26,6 +29,10 @@ open class ContextImpl() : Context(), InstanceKoinComponent {
     override fun windowManager(): WindowManager = getKoin().get<WindowManager>()
 
     override fun activityManager(): ActivityManager = getKoin().get<ActivityManager>()
+    override val applicationCoroutineScope: CoroutineScope
+        get() = getKoin().get<CoroutineScope>(named<Application>())
+    override val mainCoroutineScope: CoroutineScope
+        get() = getKoin().get<CoroutineScope>(named<ActivityManager>())
 
     override fun exitApp() {
         Singularity.exitAppOrProcess(false)
@@ -34,8 +41,9 @@ open class ContextImpl() : Context(), InstanceKoinComponent {
     override fun startActivity(
         intent: Intent,
     ) {
-        getKoin().get<ActivityManager>().launchActivity(intent)
+        activityManager().launchActivity(intent)
     }
+
     /**
      * 在[ActivityManager.scope]中生成并运行activity，如此，activity就跑在ui（主）线程上
      */
@@ -43,17 +51,21 @@ open class ContextImpl() : Context(), InstanceKoinComponent {
         intent: Intent,
         callback: ActivityResultCallback,
     ) {
+        activityManager().launchActivity(intent)
         coroutineScope {
             intent.collectResult {
                 callback.invoke(it.resultCode, it.data)
             }
         }
-        getKoin().get<ActivityManager>().launchActivity(intent)
     }
 
     companion object {
-        fun createBaseContextForActivity(): Context {
-            return ContextImpl()
+        fun createBaseContextForApplication(instance: Application): ContextImpl {
+            return ContextImpl().also { it.attachApplication(instance) }
+        }
+
+        fun createBaseContextForActivity(instance: Application = Singularity.applicationInternal): ContextImpl {
+            return ContextImpl().also { it.attachApplication(instance) }
         }
     }
 }

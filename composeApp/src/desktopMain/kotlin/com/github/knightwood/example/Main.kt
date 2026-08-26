@@ -58,7 +58,7 @@ fun ApplicationScope.SystemTray() {
         onLeftClick = {
             mainActivity?.run {
                 show()
-                windowHolder.composeWindow.setWindowSizeState(WindowSizeState.Restore)
+                composeWindow?.setWindowSizeState(WindowSizeState.Restore)
             }
         },
         menu = remember {

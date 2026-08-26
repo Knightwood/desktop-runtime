@@ -31,7 +31,7 @@ object Singularity {
     /**
      * 从这里可以得到全局的application引用，用于上下文操作
      */
-    private lateinit var applicationInternal: Application
+    internal lateinit var applicationInternal: Application
     private val lock = Any()
     fun isApplicationExist() = this::applicationInternal.isInitialized
 
@@ -105,9 +105,7 @@ object Singularity {
             // 创建Application实例
             val instance: Application = applicationClass.getDeclaredConstructor().newInstance()
             //生成第一个context
-            val firstContext = ContextImpl().also { impl ->
-                impl.attachApplication(instance)
-            }
+            val firstContext = ContextImpl.createBaseContextForApplication(instance)
             instance.also { instance: Application ->
                 this.applicationInternal = instance
                 instance.attach(firstContext)
@@ -126,7 +124,7 @@ object Singularity {
         mainActivity: Class<out Activity>,
         intentBuilder: (Intent.() -> Unit)?,
     ) {
-        val intent = Intent(this@Singularity,mainActivity)
+        val intent = Intent(this@Singularity, mainActivity)
         intentBuilder?.invoke(intent)
         startActivity(intent)//这里会运行在协程，注意调用时机
     }

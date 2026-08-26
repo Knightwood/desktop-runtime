@@ -3,51 +3,44 @@
 package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
-import androidx.compose.desktop.runtime.core.intent.Intent
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.input.key.KeyEvent
-import androidx.lifecycle.*
-import androidx.lifecycle.Lifecycle.Event.*
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.desktop.runtime.context.Context
 import androidx.compose.desktop.runtime.context.ThemedContext
+import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.desktop.runtime.savestate.WeakReferenceDelegate
-import androidx.compose.desktop.runtime.window.ApplicationContent
-import androidx.compose.desktop.runtime.window.DxWindowHolder
+import androidx.compose.desktop.runtime.window.ActivityContentEntity
+import androidx.compose.desktop.runtime.window.ApplicationComposableContent
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
-import androidx.compose.ui.window.*
+import androidx.compose.ui.window.FrameWindowScope
+import androidx.compose.ui.window.application
 import androidx.core.bundle.bundleOf
 import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.jvm.system.di.inject
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.Lifecycle.Event.*
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
-import com.github.knightwood.slf4j.kotlin.logFor
-
-/**
- * 启动模式，默认为标准模式，即多个实例可以同时存在。
- */
-enum class LaunchMode {
-    SINGLE_INSTANCE,
-    STANDARD,
-    ;
-
-    operator fun plus(data: Any?): Pair<LaunchMode, Any?> {
-        return this to data
-    }
-}
+import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
 
 /**
  * androidx lifecycle 2.9.0-alpha06 Lifecycle.DESTROYED 状态是最终状态，现在，如果尝试将
  * Lifecycle 从该状态移至任何其他状态，都会导致 IllegalStateException。
  *
  * 当隐藏window，生命周期会走到[ON_PAUSE]
- * 当window被移除（调用[finish]方法），window生命周期会走到[ON_DESTROY]，
- * 我们本就实现了隐藏与现实方法，根本不需要activity在关闭windows后重新生成window来显示界面，重走生命周期，
+ * 当window被移除（调用[finish]方法、手动点击窗口关闭按钮），window生命周期会走到[ON_DESTROY]，
+ * 我们本就实现了隐藏与显示方法，根本不需要activity在关闭windows后重新生成window来显示界面，重走生命周期，
  * 而且当前生命走到[ON_DESTROY]时是无法设置其他生命周期状态的，因此，activity理应同步window生命周期
  *
  * 如下是jb对于window的生命周期描述。
@@ -72,12 +65,43 @@ enum class LaunchMode {
  * 首先，修改java默认locale，然后关闭窗口，此时compose进入onStop状态，
  * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
  */
-abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserver, InstanceKoinComponent {
+abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent {
+    private val logger = LoggerFactory.getLogger(this.toString())
+    protected val parentLifecycleObserver = object : LifecycleEventObserver {
+        /**
+         * 观察window的生命周期，并进行同步
+         * 当window销毁时，activity的生命周期结束
+         */
+        override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+            logger.info("window lifecycle event: $event")
+            /*
+            * 有些生命周期事件不需要同步
+            * 1. onCreate状态: activity生成实例后会被调用attach方法,开始生命周期流程并进入onCreate状态,此后会显示compose window并同步compose window的生命周期状态.
+            * 因此,当同步compose window生命周期状态的时候,activity已经进入了onCreate状态,根本不需要同步compose window的onCreate状态.
+            */
+            if (event != Lifecycle.Event.ON_CREATE) {
+                syncLife(event)
+            }
+            when (event) {
+                ON_RESUME -> onResume()
+                ON_PAUSE -> onPause()
+                ON_STOP -> onStop()
+                ON_DESTROY -> {
+                    //当窗口生命周期走到onDestroy状态,activity也就此关闭,因此不要再继续监听窗口的生命周期
+                    source.lifecycle.removeObserver(this)
+                    onDestroy()
+                }
+
+                ON_START -> onStart()
+                // on_create事件不需要同步,
+                ON_CREATE -> logger.info("compose window new lifecycle state:onCreate. ignore")
+                ON_ANY -> logger.info("compose window new lifecycle state:ON_ANY. ignore")
+            }
+        }
+    }
+
     val stateSaver by inject<ApplicationSaveStateSaver>()
-    lateinit var windowHolder: DxWindowHolder
     var intent by WeakReferenceDelegate<Intent>()
-    val window: ComposeWindow
-        get() = windowHolder.composeWindow
 
     @Suppress("LeakingThis")
     protected var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this@Activity)
@@ -92,11 +116,13 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     internal val token: Token?
         get() = intent?.token
 
+    private val finalId = Token(this::class.qualifiedName?:this::class.hashCode().toString())
+
     /**
      * 上面的token与状态保存和恢复相关,如果不需要使用状态保存和恢复功能,则token为null,
      * 此时就无法使用token标识activity的唯一性了,因此需要一个回退字段标识唯一性.
      */
-    internal val idn: Token = Token(this.toString())
+    internal val idn: Token get() = token ?: finalId
 
     /**
      * 在[ApplicationSaveStateSaver]中使用token注册一个SaveState,用于存放所有需要保存的状态
@@ -119,11 +145,24 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     private var finished: Boolean = false
 
-    var isHidden: Boolean
-        get() = windowHolder.isHidden.value
-        private set(value) {
-            windowHolder.isHidden.value = value
-        }
+    /**
+     * 根视图
+     */
+    var rootContentView: ActivityContentEntity = ActivityContentEntity()
+
+    var composeWindow: ComposeWindow? = null
+
+    /**
+     * 在实现类中需调用Window,将Window中的visible参数指定为此变量才可生效
+     */
+    var mVisibility by mutableStateOf(true)
+    fun show() {
+        mVisibility = true
+    }
+
+    fun hide() {
+        mVisibility = false
+    }
 
     /**
      * 1. activity将自己注册进[ActivityManager]
@@ -134,11 +173,8 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         context: Context,
         intent: Intent,
     ) {
-        attachBaseContext(context)
         this.intent = intent
-        if (!this::windowHolder.isInitialized) {
-            windowHolder = DxWindowHolder(this, windowManager(), intent.multiApplication)
-        }
+        attachBaseContext(context)
         activityManager().register(idn, this@Activity)
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
         onCreate(savedState)
@@ -149,33 +185,10 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      * 但是，不能同步[ON_DESTROY]状态，因为activity的生命周期理应比window更长。
      *
      * @param event 需要同步的生命周期事件
-     * @param destroy 是否同步[ON_DESTROY]，在同步window生命周期是要求此参数为false。
      */
-    private fun syncLife(event: Lifecycle.Event, destroy: Boolean = false) {
-        if (event != ON_DESTROY || destroy) {
-            lifecycleRegistry.currentState = event.targetState
-            lifecycleRegistry.handleLifecycleEvent(event)
-        }
-    }
-
-    /**
-     * 观察window的生命周期，并进行部分同步 当window销毁时，activity的生命周期就走到destroy
-     */
-    override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-//        kLogger.info("window event: $event")
-        syncLife(event, true)
-        when (event) {
-            ON_RESUME -> onResume()
-            ON_PAUSE -> onPause()
-            ON_STOP -> onStop()
-            ON_DESTROY -> {
-                source.lifecycle.removeObserver(this)
-                onDestroy()
-            }
-
-            ON_START -> onStart()
-            else -> {}
-        }
+    private fun syncLife(event: Lifecycle.Event) {
+        lifecycleRegistry.currentState = event.targetState
+        lifecycleRegistry.handleLifecycleEvent(event)
     }
 
     /**
@@ -185,8 +198,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
      */
     @CallSuper
     open fun onCreate(savedInstanceState: SavedState?) {
-        lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
-        lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        this.syncLife(ON_CREATE)
     }
 
     @CallSuper
@@ -196,15 +208,15 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
 
     open fun onStart() {}
 
-    open fun setContent(content: ApplicationContent) {
-        if (!this::windowHolder.isInitialized) {
-            throw IllegalStateException("window is not initialized")
+    open fun setContent(content: ApplicationComposableContent) {
+        if (intent?.multiApplication == true) {
+            mainCoroutineScope.launch {
+                application(content = content)
+            }
+        } else {
+            rootContentView.rootContent = content
+            windowManager().attachWindow(rootContentView)
         }
-        if (this.windowHolder.rootView != null) {
-            throw IllegalStateException("window content is not null, setContentView can only call once time")
-        }
-        windowHolder show content
-
     }
 
     /**
@@ -230,54 +242,61 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     }
 
     /**
-     * 从ActivityManager中移除自己
+     * 让生命周期进入onDestroy的方式有两种:
+     * 1. 外部触发,手动点击窗口的"X"关闭按钮,compose window自动进入onDispose流程，生命周期走到ON_DESTROY状态，
+     * 由于activity同步compose window的生命周期，于是activity也会进入[ON_DESTROY]状态，并调用[onDestroy]方法,移除WindowManager中注册的compose视图.
+     *
+     * 流程:
+     * activity -> observe and sync -> window lifecycle
+     * 即
+     * close application window -> window lifecycle update to ON_DESTROY
+     * -> activity sync window lifecycle -> activity lifecycle will set to ON_DESTROY and invoke onDestroy function
+     *
+     * 2. 内部触发, 手动调用finish方法
+     *  2.1 如果compose window已显示,则从window manager中移除compose视图(此视图函数中调用了Window函数),application scope重组,
+     *  不再调用此compose视图函数,Window函数就会从compose重组树上卸载,也就是窗口被移除,之后流程与1.相同
+     *  2.2 如果compose window未显示,则直接使生命周期进入ON_DESTROY
      */
     @CallSuper
     open fun onDestroy() {
+        /*
+         * 关于窗口被手动或内部关闭, activity同步ON_DESTROY生命周期后会调用windowManager().unregister(idn),
+         * 此方法会造成compose window被销毁,生命周期走到ON_DESTROY, activity又会同步生命周期,回调onDestroy,
+         * 是否会造成循环调用的解释:
+         *
+         * 注：
+         *
+         * 移除窗口: 从WindowManager中移除ActivityContentEntity,
+         * 此时application scope重组,程序窗口(compose window)消失,compose window的生命周期走到onDestroy
+         *
+         * 手动关闭程序窗口: 使用鼠标在窗口的右上角点击 X 按钮
+         *
+         * 窗口关闭\生命周期变化的两个流程：
+         * 1. 如果外部触发,即手动关闭程序窗口,此时窗口生命周期走到ON_DESTROY,activity会同步窗口状态并移除生命周期监听,回调onDestroy方法移除窗口,
+         * 移除窗口时窗口的生命周期已经destroy,不会再次触发onDestroy事件,且即使触发,由于activity已经移除生命周期监听,不会再次触发生命周期同步、回调onDestroy。
+         *
+         * 2. 如果是从程序中调用finish结束窗口,则会先移除窗口,窗口被移除会触发compose window的ON_DESTROY事件,activity会同步此状态并移除生命周期监听,回调onDestroy方法移除窗口,
+         * 由于前面已经移除窗口,此时再次移除窗口是无效操作,不会再次触发ON_DESTROY事件,且activity已经移除生命周期监听,不会再次触发生命周期同步.
+         *
+         */
+        windowManager().deAttachWindow(rootContentView)
+        composeWindow = null
         savedState?.let { onSaveInstanceState(it) }
-//        val saved = window.saveState()
-//        if (saved != null) {
-//            activityManager().setBundle(uuid, saved)
-//        }
         finished = true
         activityManager().remove(idn)
-//        windowHolder.release()
     }
 
     /**
-     * 从windowManager移除window，window会进入onDispose状态，然后，window的生命周期走到destroy状态，
-     * activity监听window生命周期，于是，activity也进入[ON_DESTROY]状态，并调用[onDestroy]方法
-     *
-     *
-     * fix: 2026-05-22，其实原先的实现方式有点绕，是dispose Awt窗口，activity收到生命周期通知，然后移除compose视图窗口
-     * 实际上我们可以直接调用[DxWindowHolder.release]移除compose视图窗口，自然Awt窗口会dispose，activity收到生命周期通知
-     * 而且这也更符合application的退出逻辑，即清空windowMgr中的所有窗口，然后，application退出。
-     * 方式如下：
-     * 1. 删除onDestroy中的windowHolder.release()
-     * 2. 删除finish中的window.dispose()，增加windowHolder.release()调用
-     *
+     * 手动结束activity,移除window
      */
     @CallSuper
     open fun finish() {
-        if (windowHolder.isAttached()) {
-//            window.dispose()
-            windowHolder.release()
+        if (rootContentView.isAttachedToApplication) {
+            windowManager().deAttachWindow(rootContentView)
         } else {
-            syncLife(ON_DESTROY, true)
+            syncLife(ON_DESTROY)
             onDestroy()
         }
-    }
-
-    @CallSuper
-    open fun hide() {
-        isHidden = true
-    }
-
-    open fun show() {
-        if (lifecycle.currentState == Lifecycle.State.DESTROYED) {
-            throw IllegalStateException("activity is destroyed, cannot show")
-        }
-        isHidden = false
     }
 
     //<editor-fold desc="result callback">
@@ -302,62 +321,17 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
     //</editor-fold>
 
     /**
-     * 创建一个ComposeView，并绑定生命周期。
-     *
-     * @param state 窗口状态，默认为[rememberWindowState]
-     * @param onCloseRequest 关闭窗口的回调，默认为[finish]关闭当前window，
-     *    可以调用[hide]隐藏窗口，也可以调用[exitApp]结束应用进程。
-     * @param title 窗口标题，默认为"Untitled"
-     * @param icon 窗口图标，默认为null
-     * @param undecorated 是否无边框，默认为false
-     * @param transparent 是否透明，默认为false
-     * @param resizable 是否可resize，默认为true
-     * @param enabled 是否启用，默认为true
-     * @param focusable 是否可聚焦，默认为true
-     * @param alwaysOnTop 是否一直置顶，默认为false
-     * @param onPreviewKeyEvent 预处理按键事件，默认为{@code false}
-     * @param onKeyEvent 处理按键事件，默认为{@code false}
-     * @param content 窗口内容
+     * 同步Compose Window的生命周期
      */
     @Composable
-    fun ComposeView(
-        state: WindowState = rememberWindowState(),
-        onCloseRequest: () -> Unit,
-        title: String = "Untitled",
-        icon: Painter? = null,
-        undecorated: Boolean = false,
-        transparent: Boolean = false,
-        resizable: Boolean = true,
-        enabled: Boolean = true,
-        focusable: Boolean = true,
-        alwaysOnTop: Boolean = false,
-        onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
-        onKeyEvent: (KeyEvent) -> Boolean = { false },
-        content: @Composable FrameWindowScope.() -> Unit,
-    ) {
-        Window(
-            onCloseRequest = onCloseRequest,
-            state = state,
-            visible = !windowHolder.isHidden.value,
-            title = title,
-            icon = icon,
-            undecorated = undecorated,
-            transparent = transparent,
-            resizable = resizable,
-            enabled = enabled,
-            focusable = focusable,
-            alwaysOnTop = alwaysOnTop,
-            onPreviewKeyEvent = onPreviewKeyEvent,
-            onKeyEvent = onKeyEvent,
-            content = {
-                val lc: LifecycleOwner = LocalLifecycleOwner.current
-                remember {
-                    lc.lifecycle.addObserver(this@Activity)
-                    windowHolder.composeWindow = this.window
-                }
-                content()
-            }
-        )
+    open fun FrameWindowScope.Link2ComposeWindow(content: @Composable FrameWindowScope.() -> Unit) {
+        //这里的lifecycle是composeContainer的提供的
+        val lc: LifecycleOwner = LocalLifecycleOwner.current
+        remember {
+            lc.lifecycle.addObserver(parentLifecycleObserver)
+        }
+        this@Activity.composeWindow = this.window
+        content()
     }
 
     companion object {
@@ -366,5 +340,3 @@ abstract class Activity : ThemedContext(), LifecycleOwner, LifecycleEventObserve
         const val FAILED = 0
     }
 }
-
-private val logger = logFor("tty1-activity")

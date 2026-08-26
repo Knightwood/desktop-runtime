@@ -1,7 +1,8 @@
 package com.github.knightwood.example.acts
 
-import androidx.compose.desktop.runtime.activity.FragmentActivity
+import androidx.compose.desktop.runtime.activity.ComponentActivity
 import androidx.compose.desktop.runtime.fragment.*
+import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.HorizontalDivider
@@ -12,93 +13,80 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.DialogWindow
+import androidx.compose.ui.window.Window
 import androidx.savedstate.SavedState
 import com.github.knightwood.example.components.SampleButton
 import kotlin.random.Random
 
-class TestFragmentActivity : FragmentActivity() {
+class TestFragmentActivity() : ComponentActivity() {
+    val fragmentProvider = FragmentProvider(this.lifecycle)
+
+    /**
+     * 通过FragmentProvider创建的Fragment会在调用FragmentProvider.remove时自动保存状态.
+     * 未通过FragmentProvider创建的Fragment,会跟随attach的host lifecycle在ON_DESTROY时自动保存状态.
+     * 单纯的使用if条件显示和不显示Fragment是不会自动保存状态的.
+     */
+    val f1 get() = fragmentProvider.obtain<Fragment1>(Token("123"))
+    val f2 by fragment<Fragment1>(Token("124"))
+    val testDialog by fragment<TestDialog>(Token("dialog1"))
 
     override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
-        register<Fragment1>("123")
-        register<Fragment1>("124")
-        register<TestDialog>("dialog1")
         setContent {
-            ComposeView() {
-                var screen1 by remember {
-                    mutableStateOf<Fragment?>(fragment("123"))
-                }
-                MaterialTheme {
-                    Column {
+            Window(onCloseRequest = { finish() }) {
+                Link2ComposeWindow {
+                    MaterialTheme {
+                        Column {
 // =====================================================================================//
-                        Text("测试fragment的状态存储")
-                        screen1?.invoke()
-                        Row {
-                            SampleButton("关闭") {
-                                unregister("123")
-                                screen1 = null
+                            var f1Exist by remember { mutableStateOf(true) }
+                            Text("测试fragment的状态存储")
+                            if (f1Exist) {
+                                f1.Screen()
                             }
-                            SampleButton("再打开") {
-                                screen1 = register<Fragment1>("123")
-                            }
-                        }
-
-
-// =====================================================================================//
-
-                        HorizontalDivider()
-                        Text("fragment的显示隐藏")
-                        fragment("124")()
-                        SampleButton("显示隐藏") {
-                            fragment("124").run {
-                                if (mVisibility.value) {
-                                    hide()
-                                } else {
-                                    show()
+                            Row {
+                                SampleButton("关闭") {
+                                    f1Exist = false
+                                    fragmentProvider.remove(Token("123"))
+                                }
+                                SampleButton("再打开") {
+                                    f1Exist = true
                                 }
                             }
-                        }
-// =====================================================================================//
-                        HorizontalDivider()
-                        Text("测试dialog fragment")
-                        Text("关闭弹窗即隐藏，点击销毁后无法再显示")
-                        val dialog by remember {
-                            mutableStateOf(fragment("dialog1"))
-                        }
-                        dialog()
-                        Row {
-                            SampleButton("打开dialog1") {
-                                dialog.show()
-                            }
-                            SampleButton("销毁dialog1") {
-                                (dialog as DialogFragment).dismiss()
-                            }
-                        }
 
 
 // =====================================================================================//
 
-                        HorizontalDivider()
-                        Text("测试不添加到管理器的dialog fragment")
-                        Text("关闭弹窗即隐藏，点击销毁后无法再显示")
-                        val dialog2 by remember {
-                            mutableStateOf(
-                                DialogFragment.makeDialog(
-                                    TestDialog::class.java,
-                                    this@TestFragmentActivity
-                                )
-                            )
-                        }
-                        dialog2()
-                        Row {
-                            SampleButton("打开dialog2") {
-                                dialog2.show()
+                            HorizontalDivider()
+                            Text("fragment的显示隐藏")
+                            f2.Screen()
+                            SampleButton("显示隐藏") {
+                                f2.run {
+                                    if (mVisibility.value) {
+                                        hide()
+                                    } else {
+                                        show()
+                                    }
+                                }
                             }
-                            SampleButton("销毁dialog2") {
-                                (dialog2 as DialogFragment).dismiss()
-                            }
-                        }
+// =====================================================================================//
+                            HorizontalDivider()
+                            Text("测试dialog fragment")
+                            Text("关闭弹窗即隐藏，点击销毁后无法再显示")
 
+                            testDialog.Screen()
+                            Row {
+                                SampleButton("打开dialog1") {
+                                    testDialog.show()
+                                }
+                                SampleButton("销毁dialog1") {
+                                    testDialog.dismiss()
+                                }
+                            }
+
+// =====================================================================================//
+                            HorizontalDivider()
+                        }
                     }
                 }
             }
@@ -107,14 +95,8 @@ class TestFragmentActivity : FragmentActivity() {
 }
 
 class Fragment1 : Fragment() {
-    init {
-        //如果为true，则不会在onDestroy时保存数据，也不会在 onCreate中恢复数据
-        //默认为true
-        clearBundle = false
-    }
-
-    override fun onCreateView(): AbstractComposableView {
-        return setContent {
+    override fun onCreateView(): ComposableView {
+        return ComposableView {
             val text1 = rememberSaveable() {
                 mutableStateOf("rememberSaveable")
             }
@@ -137,17 +119,30 @@ class Fragment1 : Fragment() {
 }
 
 
-class TestDialog : DialogFragment() {
-    override fun onCreateView(): AbstractComposableView {
-        return setContent {
-            Dialog() {
-                MaterialTheme {
-                    Column {
-                        Text("dialog")
+class TestDialog : Fragment() {
+    var windowVisibility by mutableStateOf(true)
+
+    init {
+        mVisibility.value = false
+    }
+
+    override fun onCreateView(): ComposableView {
+        return ComposableView {
+            if (windowVisibility) {
+                DialogWindow(onCloseRequest = {
+                    windowVisibility = false
+                }) {
+                    MaterialTheme {
+                        Column {
+                            Text("dialog")
+                        }
                     }
                 }
             }
         }
     }
 
+    fun dismiss() {
+        windowVisibility = false
+    }
 }

@@ -5,6 +5,7 @@ import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
+import kotlinx.coroutines.CoroutineScope
 import kotlin.reflect.KClass
 
 open class ContextWrapper : Context() {
@@ -24,6 +25,10 @@ open class ContextWrapper : Context() {
     override fun windowManager(): WindowManager = mBase.windowManager()
 
     override fun activityManager(): ActivityManager = mBase.activityManager()
+    override val applicationCoroutineScope: CoroutineScope
+        get() = mBase.applicationCoroutineScope
+    override val mainCoroutineScope: CoroutineScope
+        get() = mBase.mainCoroutineScope
 
     override fun exitApp() = mBase.exitApp()
 

@@ -1,7 +1,6 @@
 package androidx.compose.desktop.runtime.core.intent
 
 import androidx.compose.desktop.runtime.activity.Activity
-import androidx.compose.desktop.runtime.activity.LaunchMode
 import androidx.compose.desktop.runtime.activity.ActivityResult
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.core.bundle.Bundle
@@ -31,6 +30,7 @@ class LaunchActivityIntent : OperateIntent {
 
     /** 启动模式 */
     var launchMode: LaunchMode = LaunchMode.STANDARD
+        internal set
 
     /**
      * 启动activity携带的数据
@@ -100,6 +100,11 @@ class LaunchActivityIntent : OperateIntent {
      * 可是，实现状态保存和恢复，在桌面端真的有意义吗?
      */
     var token: Token? = null
+        set(value) {
+            //仅允许设置一次
+            if (field != null) throw IllegalArgumentException("Token already set")
+            field = value
+        }
 
     /**
      * If true, the activity will not be attached to current application scope
@@ -149,5 +154,17 @@ class LaunchActivityIntent : OperateIntent {
         }
         this.targetActivity = to
         this.launchMode = launchMode
+    }
+}
+/**
+ * 启动模式，默认为标准模式，即多个实例可以同时存在。
+ */
+enum class LaunchMode {
+    SINGLE_INSTANCE,
+    STANDARD,
+    ;
+
+    operator fun plus(data: Any?): Pair<LaunchMode, Any?> {
+        return this to data
     }
 }

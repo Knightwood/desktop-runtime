@@ -110,8 +110,11 @@ import kotlin.reflect.KClass
  *
  * ```
  */
-open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewModelProviderFactory,
-    SavedStateRegistryOwner {
+open class ComponentActivity : Activity(),
+    ViewModelStoreOwner,
+    HasDefaultViewModelProviderFactory,
+    SavedStateRegistryOwner
+{
     private val logger = logFor("ComponentActivity")
     private var _viewModelStore: ViewModelStore? = null
     override val viewModelStore: ViewModelStore
@@ -209,71 +212,27 @@ open class ComponentActivity : Activity(), ViewModelStoreOwner, HasDefaultViewMo
     }
 
     /**
-     * 创建一个ComposeView，并绑定生命周期。
-     *
-     * @param state 窗口状态，默认为[rememberWindowState]
-     * @param title 窗口标题，默认为"Untitled"
-     * @param icon 窗口图标，默认为null
-     * @param closeActivity 点击窗口关闭按钮时，是否关闭Activity。false:点击关闭按钮时[hide];true:点击关闭按钮时[finish]
-     * @param undecorated 是否无边框，默认为false
-     * @param transparent 是否透明，默认为false
-     * @param resizable 是否可resize，默认为true
-     * @param enabled 是否启用，默认为true
-     * @param focusable 是否可聚焦，默认为true
-     * @param alwaysOnTop 是否一直置顶，默认为false
-     * @param onPreviewKeyEvent 预处理按键事件，默认为{@code false}
-     * @param onKeyEvent 处理按键事件，默认为{@code false}
-     * @param content 窗口内容
+     * 同步Compose Window的生命周期,为compose提供生命周期组件
      */
     @Composable
-    fun ComposeView(
-        state: WindowState = rememberWindowState(),
-        title: String = "Untitled",
-        icon: Painter? = null,
-        closeActivity: Boolean = true,
-        undecorated: Boolean = false,
-        transparent: Boolean = false,
-        resizable: Boolean = true,
-        enabled: Boolean = true,
-        focusable: Boolean = true,
-        alwaysOnTop: Boolean = false,
-        onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
-        onKeyEvent: (KeyEvent) -> Boolean = { false },
-        content: @Composable FrameWindowScope.() -> Unit,
-    ) {
-        Window(
-            onCloseRequest = if (closeActivity) ::finish else ::hide,
-            state = state,
-            visible = !windowHolder.isHidden.value,
-            title = title,
-            icon = icon,
-            undecorated = undecorated,
-            transparent = transparent,
-            resizable = resizable,
-            enabled = enabled,
-            focusable = focusable,
-            alwaysOnTop = alwaysOnTop,
-            onPreviewKeyEvent = onPreviewKeyEvent,
-            onKeyEvent = onKeyEvent,
-            content = {
-                //这里的lifecycle是composeContainer的提供的
-                val lc: LifecycleOwner = LocalLifecycleOwner.current
-                remember {
-                    lc.lifecycle.addObserver(this@ComponentActivity)
-                    windowHolder.composeWindow = this.window
-                }
+    override fun FrameWindowScope.Link2ComposeWindow(content: @Composable FrameWindowScope.() -> Unit){
+        this@ComponentActivity.composeWindow = this.window
+        //这里的lifecycle是composeContainer的提供的
+        val lc: LifecycleOwner = LocalLifecycleOwner.current
+        remember {
+            lc.lifecycle.addObserver(parentLifecycleObserver)
+        }
 
-                //适配compose 1.9，我们需要使用自己的状态存储恢复覆盖掉kmp内部的。
-                ProvideAndroidCompositionLocals(
-                    id = idn.toString(),
-                    this@ComponentActivity,
-                    this@ComponentActivity,
-                    this@ComponentActivity,
-                    this@ComponentActivity
-                ) {
-                    content()
-                }
-            }
-        )
+        //适配compose 1.9，我们需要使用自己的状态存储恢复覆盖掉kmp内部的。
+        ProvideAndroidCompositionLocals(
+            id = idn.toString(),
+            this@ComponentActivity,
+            this@ComponentActivity,
+            this@ComponentActivity,
+            this@ComponentActivity
+        ) {
+            content()
+        }
     }
+
 }

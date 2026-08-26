@@ -11,6 +11,7 @@ import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.core.intent.Intent
+import androidx.compose.ui.window.Window
 import androidx.savedstate.SavedState
 import kotlinx.coroutines.delay
 
@@ -28,17 +29,10 @@ class SplashActivity : Activity() {
                     position = WindowPosition.Aligned(Alignment.Center),
                     size = DpSize(300.dp, 300.dp)
                 )
-            ComposeView(
-                onCloseRequest = {
-                    finish()
-                },
-                state = state,
-                alwaysOnTop = true,
-                title = "Multi-Devs Control",
-                undecorated = true,
-                transparent = true,
-            ) {
-                Text("启动页", fontSize = 64.sp)
+            Window(onCloseRequest = { finish() }, state = state) {
+                Link2ComposeWindow {
+                    Text("启动页", fontSize = 64.sp)
+                }
             }
         }
     }

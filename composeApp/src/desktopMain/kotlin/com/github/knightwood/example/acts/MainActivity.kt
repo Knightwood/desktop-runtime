@@ -3,6 +3,7 @@ package com.github.knightwood.example.acts
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.material3.Text
 import androidx.compose.desktop.runtime.core.intent.Intent
+import androidx.compose.desktop.runtime.core.intent.LaunchActivityIntent
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.desktop.runtime.utils.err.SwingErrorDialog
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
 import androidx.jvm.system.core.AppPathProvider
 import androidx.jvm.system.core.keepDirExist
 import androidx.jvm.system.process.ProcessLocker
@@ -31,13 +33,13 @@ import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.*
 import me.i18n.resources.app_name
 import org.jetbrains.compose.resources.stringResource
+import java.awt.SystemColor.window
 import kotlin.random.Random
 
 
 open class MainActivity : Activity() {
     val randoms = Random.nextInt(0, 11)
-    var tag = "Activity$randoms"
-    private val logger = logFor(tag)
+    private val logger = logFor(this.toString())
     private val scope = CoroutineScope(Dispatchers.Default) + SupervisorJob()
 
     override fun onCreate(savedInstanceState: SavedState?) {
@@ -45,124 +47,130 @@ open class MainActivity : Activity() {
         logger.warn(applicationContext.toString())
         mainActivity = this
         setContent {
-            ComposeView(onCloseRequest = { finish() }) {
-                val settings = RenderSettingsProvider.flow.collectAsState(initial = RenderSettingsProvider.defaultValue())
-
-                MaterialTheme {
-                    Column {
-                        Text(text = "rememberSavable测试")
-                        Button(onClick = {
-                            val intent = Intent(this@MainActivity, StateTestActivity::class.java)
-                            //需要注意，activity取回保存起来的数据依靠uuid，因此需要在这里设置uuid
-                            intent.token = Token("11")
-                            startActivity(intent)
-                        }) {
-                            Text("点击启动状态测试页面")
-                        }
-
-                        HorizontalDivider()
-                        Button(onClick = {
-                            val intent = Intent(
-                                this@MainActivity,
-                                VMTestActivity::class.java
-                            ).apply {
-                                token = Token("12")
-                                data {
-                                    putInt("random", Random.nextInt(12, 20))
-                                }
-                            }
-                            scope.launch {
-                                startActivityForResult(intent) { result, data ->
-                                    logger.info("result: $result, data: $data")
-                                }
-                            }
-                        }) {
-                            Text("点击启动vm测试页面")
-                        }
-
-                        HorizontalDivider()
-                        Button(onClick = {
-                            val intent =
-                                Intent(this@MainActivity, TestFragmentActivity::class.java)
-                            intent.token = Token("13")
-                            startActivity(intent)
-                        }) {
-                            Text("点击启动fragment测试页面")
-                        }
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-
+            Window(
+                onCloseRequest = { finish() },
+                visible = mVisibility,
+            ) {
+                Link2ComposeWindow {
+                    val settings = RenderSettingsProvider.flow.collectAsState(initial = RenderSettingsProvider.defaultValue())
+                    MaterialTheme {
+                        Column {
+                            Text(text = "rememberSavable测试")
                             Button(onClick = {
-                                scope.launch {
-                                    throw RuntimeException("测试异常")
-                                }
+                                val intent = Intent(this@MainActivity, StateTestActivity::class.java)
+                                //需要注意，activity取回保存起来的数据依靠uuid，因此需要在这里设置uuid
+                                intent.token = Token("11")
+                                startActivity(intent)
                             }) {
-                                //如果协程作用域不是SupervisorJob，会在抛出异常后结束掉协程作用域，无法再次使用
-                                Text("协程抛出异常")
+                                Text("点击启动状态测试页面")
                             }
+
+                            HorizontalDivider()
                             Button(onClick = {
-                                throw RuntimeException("测试异常")
-                            }) {
-                                Text("ui抛出异常")
-                            }
-                            Button(onClick = {
-                                exitApp()
-                            }) {
-                                Text("退出程序")
-                            }
-                        }
-                        ListItem(
-                            headlineContent = { Text("更换渲染api") },
-                            trailingContent = {
-                                RenderApiSelector(
-                                    selected = settings.value.skikoRenderApi,
-                                    onChanged = {
-                                        scope.launch {
-                                            RenderSettingsProvider.update(
-                                                settings.value.copy(skikoRenderApi = it)
-                                            )
-                                        }
+                                val intent = Intent(
+                                    this@MainActivity,
+                                    VMTestActivity::class.java
+                                ).apply {
+                                    token = Token("12")
+                                    data {
+                                        putInt("random", Random.nextInt(12, 20))
                                     }
-                                )
+                                }
+                                scope.launch {
+                                    startActivityForResult(intent) { result, data ->
+                                        logger.info("result: $result, data: $data")
+                                    }
+                                }
+                            }) {
+                                Text("点击启动vm测试页面")
                             }
-                        )
-                        var transparentTrayWindow by remember { mutableStateOf(true) }
-                        TextSwitch(
-                            "透明托盘菜单", checked = transparentTrayWindow,
-                            onCheckedChange = {
-                                transparentTrayWindow = it
-                                TrayConf.transparent = it
-                            })
 
-                        Button(onClick = {
-                            SwingErrorDialog.showErrorDialog(RuntimeException("测试异常弹窗"))
-                        }) {
-                            Text("swing弹窗")
+                            HorizontalDivider()
+                            Button(onClick = {
+                                val intent = LaunchActivityIntent(
+                                    from = this@MainActivity,
+                                    to = TestFragmentActivity::class.java
+                                )
+                                intent.token = Token("13")
+                                startActivity(intent)
+                            }) {
+                                Text("点击启动fragment测试页面")
+                            }
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+
+                                Button(onClick = {
+                                    scope.launch {
+                                        throw RuntimeException("测试异常")
+                                    }
+                                }) {
+                                    //如果协程作用域不是SupervisorJob，会在抛出异常后结束掉协程作用域，无法再次使用
+                                    Text("协程抛出异常")
+                                }
+                                Button(onClick = {
+                                    throw RuntimeException("测试异常")
+                                }) {
+                                    Text("ui抛出异常")
+                                }
+                                Button(onClick = {
+                                    exitApp()
+                                }) {
+                                    Text("退出程序")
+                                }
+                            }
+                            ListItem(
+                                headlineContent = { Text("更换渲染api") },
+                                trailingContent = {
+                                    RenderApiSelector(
+                                        selected = settings.value.skikoRenderApi,
+                                        onChanged = {
+                                            scope.launch {
+                                                RenderSettingsProvider.update(
+                                                    settings.value.copy(skikoRenderApi = it)
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            )
+                            var transparentTrayWindow by remember { mutableStateOf(true) }
+                            TextSwitch(
+                                "透明托盘菜单", checked = transparentTrayWindow,
+                                onCheckedChange = {
+                                    transparentTrayWindow = it
+                                    TrayConf.transparent = it
+                                })
+
+                            Button(onClick = {
+                                SwingErrorDialog.showErrorDialog(RuntimeException("测试异常弹窗"))
+                            }) {
+                                Text("swing弹窗")
+                            }
+
+                            Button(onClick = {
+                                val lockfile = AppPathProvider.provider.internalConfigDirPath
+                                    .keepDirExist()
+                                    .resolve("lockfile.lock").toNioPath()
+                                ProcessLocker.lock(lockfile)
+                            }) {
+                                Text("获取文件锁")
+                            }
+
+                            HorizontalDivider()
+                            Text("资源加载，当前路径等信息")
+                            val appname = stringResource(me.i18n.resources.Res.string.app_name)
+                            Text(appname)
+                            val pathProvider = AppPathProvider.getInstance()
+                            val userHome = pathProvider.userHome
+                            val installPath = pathProvider.installPath
+                            val installedJarPath = pathProvider.installedJarPath
+                            val installedExePath = pathProvider.installedExePath
+                            val configPath = pathProvider.configDirPath
+                            val info =
+                                " 用户目录: $userHome\n 安装路径: $installPath\n 程序jar包路径: $installedJarPath\n exe文件路径: $installedExePath\n 配置目录路径: $configPath\n"
+                            Text(info)
                         }
-
-                        Button(onClick = {
-                            val lockfile = AppPathProvider.provider.internalConfigDirPath
-                                .keepDirExist()
-                                .resolve("lockfile.lock").toNioPath()
-                            ProcessLocker.lock(lockfile)
-                        }) {
-                            Text("获取文件锁")
-                        }
-
-                        HorizontalDivider()
-                        Text("资源加载，当前路径等信息")
-                        val appname = stringResource(me.i18n.resources.Res.string.app_name)
-                        Text(appname)
-                        val pathProvider = AppPathProvider.getInstance()
-                        val userHome = pathProvider.userHome
-                        val installPath = pathProvider.installPath
-                        val installedJarPath = pathProvider.installedJarPath
-                        val installedExePath = pathProvider.installedExePath
-                        val configPath = pathProvider.configDirPath
-                        val info =
-                            " 用户目录: $userHome\n 安装路径: $installPath\n 程序jar包路径: $installedJarPath\n exe文件路径: $installedExePath\n 配置目录路径: $configPath\n"
-                        Text(info)
                     }
                 }
             }

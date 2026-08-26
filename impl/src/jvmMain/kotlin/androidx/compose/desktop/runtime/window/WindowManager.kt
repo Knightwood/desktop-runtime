@@ -1,14 +1,15 @@
 package androidx.compose.desktop.runtime.window
 
+import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.window.*
 import androidx.jvm.system.di.InstanceKoinComponent
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.jetbrains.skiko.MainUIDispatcher
 
-typealias ApplicationContent = @Composable ApplicationScope.() -> Unit
+typealias ApplicationComposableContent = @Composable ApplicationScope.() -> Unit
 typealias ComposableContent = @Composable () -> Unit
 
 /**
@@ -44,20 +45,19 @@ internal fun ApplicationContentWrapper.ShowUI(scope: ApplicationScope, content: 
  * 有两种实现方式： 一种是每个window都在新的application块中调用，这个实现会比较简单。
  * 另一种实现是在这里调用application，所有window都在同一个application块中调用。
  */
-class WindowManager constructor() : InstanceKoinComponent {
+class WindowManager constructor() :
+    InstanceKoinComponent {
     val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
 
-    private val windows: SnapshotStateList<DxWindowHolder> = SnapshotStateList()
-
-    //    private val exit: MutableState<Boolean> = mutableStateOf(false)
+    private val windows: SnapshotStateList<ActivityContentEntity> = SnapshotStateList()
     var contentWrapper: ApplicationContentWrapper? = null
         internal set
-    private var b = MutableStateFlow<Boolean>(false)
+
     private var applicationScope: ApplicationScope? = null
 
     /**
      * 调用application方法，监听windows列表变化，并创建窗口内容。
-     * 我希望这里观察[windows]的变化，并调用[DxWindowHolder]的[DxWindowHolder.windowExec]方法以展示内容。
+     * 我希望这里观察[windows]的变化，并调用[ActivityContentEntity]的[ActivityContentEntity.windowExec]方法以展示内容。
      * 但同时希望尽可能减少重组，提升性能。
      */
     fun prepare() {
@@ -66,18 +66,14 @@ class WindowManager constructor() : InstanceKoinComponent {
         application(exitProcessOnExit = false) {
             this@WindowManager.applicationScope = this
             contentWrapper?.ShowUI(scope = this, content = { AllWindowUi() }) ?: this.AllWindowUi()
-            val state = b.collectAsState()
-            if (state.value) {
-                Unit
-            }
         }
     }
 
     @Composable
-    fun ApplicationScope.AllWindowUi() {
+    private fun ApplicationScope.AllWindowUi() {
         windows.forEach { current ->
             key(current) {//避免无谓的重组
-                current.windowExec(this)
+                current.rootContent?.invoke(this)
             }
         }
     }
@@ -85,7 +81,7 @@ class WindowManager constructor() : InstanceKoinComponent {
     /**
      * 移除window，这会使window进入onDispose
      */
-    fun deAttachWindow(window: DxWindowHolder) {
+    fun deAttachWindow(window: ActivityContentEntity) {
         window.isAttachedToApplication = false
         windows.remove(window)
     }
@@ -94,16 +90,13 @@ class WindowManager constructor() : InstanceKoinComponent {
      * 添加一个要显示的window，如果添加之前没有window，则调用prepare方法。
      */
     @Synchronized
-    fun attachWindow(window: DxWindowHolder) {
+    fun attachWindow(window: ActivityContentEntity) {
         if (window.isAttachedToApplication) return
         windows.add(window)
         window.isAttachedToApplication = true
     }
 
     fun release() {
-        windows.forEach {
-            it.release()
-        }
         windows.clear()
     }
 

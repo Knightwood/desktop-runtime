@@ -4,9 +4,9 @@ import androidx.savedstate.SavedState
 import androidx.savedstate.savedState
 
 /**
- * 整个应用所有activity的SaveState都会保存在这里
- * 用户可以从此类获取所有activity保存的状态,以便将状态保存到磁盘,
- * 下次启动application后可以将保存到磁盘的状态放入此管理类,方便启动activity后恢复状态
+ * 整个应用所有Activity、IComponent的SaveState都会保存在这里
+ * 用户可以从此类获取所有Activity、IComponent保存的状态,以便将状态保存到磁盘,
+ * 下次启动Application后可以将保存到磁盘的状态放入此管理类,方便启动Activity、IComponent后恢复状态
  */
 class ApplicationSaveStateSaver {
     private val allSavedState: MutableMap<Token, SavedState> = mutableMapOf()
@@ -28,7 +28,7 @@ class ApplicationSaveStateSaver {
 
     /**
      * 导入保存到磁盘的状态数据
-     * 此函数调用时机需要早于第一个activity的启动时机
+     * 此函数调用时机需要早于第一个Activity、IComponent的启动时机
      */
     fun import(data: Map<Token, SavedState>): ApplicationSaveStateSaver {
         this.allSavedState.clear()
