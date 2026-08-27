@@ -3,8 +3,9 @@
 package androidx.compose.desktop.runtime.activity
 
 import androidx.annotation.CallSuper
-import androidx.compose.desktop.runtime.context.Context
-import androidx.compose.desktop.runtime.context.ThemedContext
+import androidx.compose.desktop.runtime.core.context.Context
+import androidx.compose.desktop.runtime.core.context.LocalContext
+import androidx.compose.desktop.runtime.core.context.ThemedContext
 import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver
 import androidx.compose.desktop.runtime.savestate.Token
@@ -12,9 +13,11 @@ import androidx.compose.desktop.runtime.savestate.WeakReferenceDelegate
 import androidx.compose.desktop.runtime.window.ActivityContentEntity
 import androidx.compose.desktop.runtime.window.ApplicationComposableContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
@@ -29,8 +32,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
@@ -64,6 +69,84 @@ import org.slf4j.LoggerFactory
  *
  * 首先，修改java默认locale，然后关闭窗口，此时compose进入onStop状态，
  * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
+ *
+ *
+ * 通常我们会这么使用Window
+ * ```
+ * application {
+ *     var windowClosed by remember { mutableStateOf(false) }
+ *     var mVisible by remember { mutableStateOf(true) }
+ *     if (!windowClosed) {
+ *         Window(
+ *             onCloseRequest = { windowClosed = true },
+ *             isVisible = mVisible,
+ *         ) {
+ *              //界面
+ *         }
+ *     }
+ * }
+ * ```
+ * 当windowClosed为false时, Window会挂载到重组树,内部创建ComposeWindow, 并将显示为窗口,并显示Compose界面
+ * 当关闭窗口时,会触发onCloseRequest回调, 你需要将windowClosed置为true, 这样Window会从重组树上卸载,不再显示窗口
+ *
+ *  原理:
+ * Window函数会创建ComposeWindow,让其显示Compose视图
+ * ComposeWindow 继承自JFrame, 内部会添加一个能渲染Compose视图的JPanel,
+ * 这个JPanel会给JFrame添加状态监听,并将其转换为生命周期,使用LocalLifecycle提供给要显示的compose视图
+ * 因此, ComposeWindow生命周期会一半跟随compose视图状态, 窗口显示时生命周期走到ON_CREATE并显示compose视图,
+ * compose视图不再显示时触发onDispose,窗口取消显示,生命周期走到ON_DESTROY
+ * 显示JFrame时需要将JFrame.isVisible 赋值为true; 不再显示JFrame时需要将JFrame.isVisible 赋值为false,
+ *
+ * Window中的伪代码如下:
+ * ```
+ *
+ * fun Window(content: @Composable ()->Unit ) {
+ *     val window = remember{
+ *         ComposeWindow(content).apply{ //一开始就创建JFrame并加载compse视图, 生命周期走到ON_CREATE
+ *             isVisible = true
+ *         }
+ *     }
+ *     DisposableEffect(){
+ *         onDispose {//compose视图不再显示, 取消显示JFrame, 此时生命周期走到ON_DESTROY
+ *             window.isVisible = false
+ *         }
+ *     }
+ * }
+ *
+ * class ComposeWindow(val content: @Composable ()->Unit) :JFrame{
+ *     init{
+ *         addPanel(ComposePanel(content,this))
+ *     }
+ * }
+ *
+ *
+ * class ComposePanel(val content: @Composable ()->Unit, val jFrame:JFrame): JPanel{
+ *     init{
+ *         jFrame.addStateListener{ state ->
+ *             syncLifecycle(state.toLifecycleEvent())
+ *         }
+ *         ...经过一些复杂处理,显示compose内容, 当然这里只是伪代码, 实际情况不会在这里调用content
+ *         LocalLifecycle.Provide(...){
+ *             content()
+ *         }
+ *     }
+ *     fun syncLifecycle(state:Lifecycle.Event){
+ *         //将生命周期设置到LocalLifecycle
+ *     }
+ * }
+ * ```
+ *
+ * 因此,
+ * 1. 当windowClosed为false时调用了Window函数, 内部创建JFrame显示窗口, 显示compose视图.
+ * 2. 当点击窗口的关闭按钮, 回调Window的onCloseRequest, 将windowClosed置为true,
+ *   Window从重组树上卸载, 触发DisposableEffect,将JFrame的isVisible置为false, JFrame不再显示, 且ComposeWindow生命周期走到ON_DESTROY
+ *
+ *
+ * 在具体实现窗口管理中, 点击关闭按钮触发Window的onCloseRequest, 此时需要将视图内容从ApplicationScope中卸载,
+ * 不点击关闭按钮,从程序逻辑中关闭窗口,其实也是将视图内容从ApplicationScope中卸载, 流程是一致的.
+ * 也就是直接调用finish即可.
+ * 其实总结起来也会发现,窗口关闭的整个过程是先将Window从重组树上移除, 然后ComposeWindow才会触发ON_DESTROY的生命周期事件,
+ * 而不是先触发ComposeWindow的ON_DESTROY的生命周期事件,再将Window从重组树上移除.
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent {
     private val logger = LoggerFactory.getLogger(this.toString())
@@ -122,7 +205,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
      * 上面的token与状态保存和恢复相关,如果不需要使用状态保存和恢复功能,则token为null,
      * 此时就无法使用token标识activity的唯一性了,因此需要一个回退字段标识唯一性.
      */
-    internal val idn: Token get() = token ?: finalId
+    protected val idn: Token get() = token ?: finalId
 
     /**
      * 在[ApplicationSaveStateSaver]中使用token注册一个SaveState,用于存放所有需要保存的状态
@@ -208,6 +291,21 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
 
     open fun onStart() {}
 
+    /**
+     * 在onCreate函数中调用,设置compose界面,请在content中调用Window以显示窗口
+     * ```
+     * setContent {
+     *      Window(
+     *          onCloseRequest = { finish() },
+     *          visible = mVisibility,
+     *      ) {
+     *          Link2ComposeWindow {
+     *              //界面
+     *          }
+     *      }
+     * }
+     * ```
+     */
     open fun setContent(content: ApplicationComposableContent) {
         if (intent?.multiApplication == true) {
             mainCoroutineScope.launch {
@@ -242,57 +340,58 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     }
 
     /**
-     * 让生命周期进入onDestroy的方式有两种:
-     * 1. 外部触发,手动点击窗口的"X"关闭按钮,compose window自动进入onDispose流程，生命周期走到ON_DESTROY状态，
-     * 由于activity同步compose window的生命周期，于是activity也会进入[ON_DESTROY]状态，并调用[onDestroy]方法,移除WindowManager中注册的compose视图.
+     * ```
+     * Window(
+     *  onCloseRequest = { finish() },
+     *  visible = mVisibility,
+     * )
+     * ```
      *
-     * 流程:
+     * 1. 手动点击窗口的"X"关闭按钮, Window触发onCloseRequest回调, 调用finish函数
+     * 2. 直接调用finish函数
+     * 会触发如下流程：
+     * 调用WindowManager的deAttachWindow将rootContent移除，applicationScope重组，
+     * 承载着ComposeWindow的rootContent从重组树上被删除，不再显示。
+     * rootContent内部的ComposeWindow触发onDispose流程，ComposeWindow生命周期走到ON_DESTROY状态，
+     * 由于activity同步ComposeWindow的生命周期，于是activity也会进入[ON_DESTROY]状态，
+     * 并调用[onDestroy]方法, 移除WindowManager中注册的compose视图.
+     *
+     * 生命周期流程:
      * activity -> observe and sync -> window lifecycle
      * 即
      * close application window -> window lifecycle update to ON_DESTROY
      * -> activity sync window lifecycle -> activity lifecycle will set to ON_DESTROY and invoke onDestroy function
      *
-     * 2. 内部触发, 手动调用finish方法
-     *  2.1 如果compose window已显示,则从window manager中移除compose视图(此视图函数中调用了Window函数),application scope重组,
-     *  不再调用此compose视图函数,Window函数就会从compose重组树上卸载,也就是窗口被移除,之后流程与1.相同
-     *  2.2 如果compose window未显示,则直接使生命周期进入ON_DESTROY
+     * 注:
+     *  1. 如果ComposeWindow已显示,则从WindowManager中移除compose视图(此视图函数中调用了Window函数)
+     *  2. 如果ComposeWindow未显示,则直接使生命周期进入ON_DESTROY
      */
     @CallSuper
     open fun onDestroy() {
-        /*
-         * 关于窗口被手动或内部关闭, activity同步ON_DESTROY生命周期后会调用windowManager().unregister(idn),
-         * 此方法会造成compose window被销毁,生命周期走到ON_DESTROY, activity又会同步生命周期,回调onDestroy,
-         * 是否会造成循环调用的解释:
-         *
-         * 注：
-         *
-         * 移除窗口: 从WindowManager中移除ActivityContentEntity,
-         * 此时application scope重组,程序窗口(compose window)消失,compose window的生命周期走到onDestroy
-         *
-         * 手动关闭程序窗口: 使用鼠标在窗口的右上角点击 X 按钮
-         *
-         * 窗口关闭\生命周期变化的两个流程：
-         * 1. 如果外部触发,即手动关闭程序窗口,此时窗口生命周期走到ON_DESTROY,activity会同步窗口状态并移除生命周期监听,回调onDestroy方法移除窗口,
-         * 移除窗口时窗口的生命周期已经destroy,不会再次触发onDestroy事件,且即使触发,由于activity已经移除生命周期监听,不会再次触发生命周期同步、回调onDestroy。
-         *
-         * 2. 如果是从程序中调用finish结束窗口,则会先移除窗口,窗口被移除会触发compose window的ON_DESTROY事件,activity会同步此状态并移除生命周期监听,回调onDestroy方法移除窗口,
-         * 由于前面已经移除窗口,此时再次移除窗口是无效操作,不会再次触发ON_DESTROY事件,且activity已经移除生命周期监听,不会再次触发生命周期同步.
-         *
-         */
-        windowManager().deAttachWindow(rootContentView)
-        composeWindow = null
         savedState?.let { onSaveInstanceState(it) }
         finished = true
         activityManager().remove(idn)
     }
 
     /**
-     * 手动结束activity,移除window
+     * 点击窗口的 X 按钮,会触发Window的onCloseRequest回调, 在onCloseRequest中请调用finish方法,
+     *
+     * 此方法将rootContent(内部会调用Window函数,使Activity追踪ComposeWindow生命周期)从WindowManager移除,
+     * 触发ApplicationScope重组,从而将承载Window的rootContent从重组树上移除，
+     * 触发ComposeWindow的onDispose流程
+     *
+     * ```
+     * Window(
+     *  onCloseRequest = { finish() },
+     *  visible = mVisibility,
+     * )
+     * ```
      */
     @CallSuper
     open fun finish() {
         if (rootContentView.isAttachedToApplication) {
             windowManager().deAttachWindow(rootContentView)
+            composeWindow = null
         } else {
             syncLife(ON_DESTROY)
             onDestroy()
@@ -322,6 +421,18 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
 
     /**
      * 同步Compose Window的生命周期
+     * ```
+     * setContent {
+     *      Window(
+     *          onCloseRequest = { finish() },
+     *          visible = mVisibility,
+     *      ) {
+     *          Link2ComposeWindow {
+     *              //界面
+     *          }
+     *      }
+     * }
+     * ```
      */
     @Composable
     open fun FrameWindowScope.Link2ComposeWindow(content: @Composable FrameWindowScope.() -> Unit) {
@@ -331,7 +442,12 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
             lc.lifecycle.addObserver(parentLifecycleObserver)
         }
         this@Activity.composeWindow = this.window
-        content()
+        CompositionLocalProvider(
+            LocalContext provides context,
+            ActivityLifecycleOwner provides this@Activity,
+        ) {
+            content()
+        }
     }
 
     companion object {

@@ -1,4 +1,4 @@
-package androidx.compose.desktop.runtime.core
+package androidx.compose.desktop.runtime.fragment
 
 import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.jvm.system.di.InstanceKoinComponent
@@ -26,6 +26,11 @@ import kotlin.reflect.KClass
  * 1. 生命周期\同步父组件生命周期,生命周期事件回调
  * 2. ViewModelStoreOwner
  * 3. SavedStateRegistryOwner\自动保存恢复状态
+ *
+ * 在ON_CREATE时自动恢复状态,在ON_DESTROY时自动保存状态
+ * 如果调用attach方法时传入了ParentLifecycle，此组件生命周期将同步ParentLifecycle,
+ * 为传入ParentLifecycle,则需要注意只要你没有手动调用[syncLife],生命周期会永久停留在ON_CREATE,
+ * 这也意味着不会自动保存状态(此时仍可以手动调用OnDestroy保存状态,或者使用syncLife设置ON_DESTROY触发保存状态).
  *
  * ```
  * open class ScreenComponent() : IComponent() {

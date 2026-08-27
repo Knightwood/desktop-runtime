@@ -3,7 +3,7 @@ package androidx.compose.desktop.runtime.core
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.activity.ActivityManager
 import androidx.compose.desktop.runtime.core.intent.Intent
-import androidx.compose.desktop.runtime.context.ContextImpl
+import androidx.compose.desktop.runtime.core.context.ContextImpl
 import androidx.compose.desktop.runtime.di.getServiceInstance
 import androidx.compose.desktop.runtime.window.ApplicationContentWrapper
 import androidx.compose.desktop.runtime.window.WindowManager

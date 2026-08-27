@@ -1,4 +1,4 @@
-package androidx.compose.desktop.runtime.context
+package androidx.compose.desktop.runtime.core.context
 
 import androidx.compose.desktop.runtime.activity.*
 import androidx.compose.desktop.runtime.core.intent.Intent
@@ -6,7 +6,6 @@ import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.core.Singularity
 import androidx.compose.desktop.runtime.window.WindowManager
-import androidx.compose.ui.window.application
 import androidx.jvm.system.di.InstanceKoinComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope

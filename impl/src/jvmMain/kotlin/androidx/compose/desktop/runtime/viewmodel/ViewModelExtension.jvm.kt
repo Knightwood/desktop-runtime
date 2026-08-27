@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelLazy
 import androidx.lifecycle.ViewModelProvider.Factory
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.compose.desktop.runtime.activity.ComponentActivity
+import androidx.compose.desktop.runtime.fragment.BasicComponent
 
 /**
  * ComponentActivity实现了ViewModelStoreOwner接口， 所以可以在Activity中生成viewModel 示例：
@@ -34,6 +35,23 @@ class ViewModelExtension
 
 @MainThread
 public inline fun <reified VM : ViewModel> ComponentActivity.viewModels(
+    noinline extrasProducer: (() -> CreationExtras)? = null,
+    noinline factoryProducer: (() -> Factory)? = null
+): Lazy<VM> {
+    val factoryPromise = factoryProducer ?: {
+        defaultViewModelProviderFactory
+    }
+
+    return ViewModelLazy(
+        VM::class,
+        { viewModelStore },
+        factoryPromise,
+        { extrasProducer?.invoke() ?: this.defaultViewModelCreationExtras }
+    )
+}
+
+@MainThread
+public inline fun <reified VM : ViewModel> BasicComponent.viewModels(
     noinline extrasProducer: (() -> CreationExtras)? = null,
     noinline factoryProducer: (() -> Factory)? = null
 ): Lazy<VM> {

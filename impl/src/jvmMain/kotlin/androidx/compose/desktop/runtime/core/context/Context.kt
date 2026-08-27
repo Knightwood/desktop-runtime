@@ -1,10 +1,11 @@
-package androidx.compose.desktop.runtime.context
+package androidx.compose.desktop.runtime.core.context
 
 import androidx.compose.desktop.runtime.activity.*
 import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
 import androidx.compose.desktop.runtime.window.WindowManager
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import kotlinx.coroutines.CoroutineScope
 import kotlin.reflect.KClass
@@ -20,6 +21,7 @@ fun noLocalProvidedFor(name: String): Nothing {
 /**
  * 仿照android，context将提供很多的系统的api或是英勇的快捷操作
  */
+@Immutable
 abstract class Context {
 
     abstract val application: Application

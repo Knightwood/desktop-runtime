@@ -226,10 +226,11 @@ open class ComponentActivity : Activity(),
         //适配compose 1.9，我们需要使用自己的状态存储恢复覆盖掉kmp内部的。
         ProvideAndroidCompositionLocals(
             id = idn.toString(),
-            this@ComponentActivity,
-            this@ComponentActivity,
-            this@ComponentActivity,
-            this@ComponentActivity
+            context = this@ComponentActivity,
+            activityLifecycleOwner = this@ComponentActivity,
+            fragmentLifecycleOwner = null,
+            viewModelStoreOwner = this@ComponentActivity,
+            savedStateRegistryOwner = this@ComponentActivity
         ) {
             content()
         }

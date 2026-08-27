@@ -27,7 +27,13 @@ class FragmentProvider(
     fun <T : Fragment> obtain(cls: KClass<T>, token: Token? = null): T {
         val key = token?.value ?: cls.hashCode().toString()
         return cache.getOrPut(key) {
-            val instance = fragment<T>(cls, hostLifecycle, token)
+            val instance =
+                if (cls.java.isAssignableFrom(DialogWindowFragment::class.java)) {
+                    //如果fragment是DialogWindowFragment的子类,则不传入宿主生命周期
+                    fragment<T>(cls, null, token)
+                } else {
+                    fragment<T>(cls, hostLifecycle, token)
+                }
             instance
         } as T
     }

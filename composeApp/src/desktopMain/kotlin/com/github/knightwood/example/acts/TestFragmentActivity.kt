@@ -28,8 +28,8 @@ class TestFragmentActivity() : ComponentActivity() {
      * 单纯的使用if条件显示和不显示Fragment是不会自动保存状态的.
      */
     val f1 get() = fragmentProvider.obtain<Fragment1>(Token("123"))
-    val f2 by fragment<Fragment1>(Token("124"))
-    val testDialog by fragment<TestDialog>(Token("dialog1"))
+    val f2 by activityOwnedFragment<Fragment1>(Token("124"))
+    val testDialog by null.ownedFragment<TestDialog>(Token("dialog1"))
 
     override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
@@ -72,11 +72,11 @@ class TestFragmentActivity() : ComponentActivity() {
 // =====================================================================================//
                             HorizontalDivider()
                             Text("测试dialog fragment")
-                            Text("关闭弹窗即隐藏，点击销毁后无法再显示")
+                            Text("关闭弹窗即销毁，点击销毁后无法再显示")
 
                             testDialog.Screen()
                             Row {
-                                SampleButton("打开dialog1") {
+                                SampleButton("显示dialog1") {
                                     testDialog.show()
                                 }
                                 SampleButton("销毁dialog1") {
@@ -119,30 +119,27 @@ class Fragment1 : Fragment() {
 }
 
 
-class TestDialog : Fragment() {
-    var windowVisibility by mutableStateOf(true)
-
-    init {
-        mVisibility.value = false
-    }
+class TestDialog : DialogWindowFragment() {
 
     override fun onCreateView(): ComposableView {
         return ComposableView {
-            if (windowVisibility) {
-                DialogWindow(onCloseRequest = {
-                    windowVisibility = false
-                }) {
+            DialogWindow(
+                onCloseRequest = {
+                    dismiss()
+                },
+                visible = mVisibility.value,
+            ) {
+                Link2ComposeDialogWindow {
                     MaterialTheme {
                         Column {
                             Text("dialog")
+                            SampleButton("隐藏dialog1") {
+                                hide()
+                            }
                         }
                     }
                 }
             }
         }
-    }
-
-    fun dismiss() {
-        windowVisibility = false
     }
 }

@@ -1,6 +1,6 @@
 package androidx.compose.desktop.runtime.savestate
 
-import androidx.compose.desktop.runtime.context.noLocalProvidedFor
+import androidx.compose.desktop.runtime.core.context.noLocalProvidedFor
 import androidx.compose.desktop.runtime.utils.CompositionLocalProviderNullable
 import androidx.compose.desktop.runtime.utils.providesNullable
 import androidx.compose.runtime.Composable
@@ -14,10 +14,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.savedstate.SavedStateRegistryOwner
-import kotlin.concurrent.thread
 import kotlin.experimental.and
 import kotlin.experimental.or
-import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.random.Random
 import kotlin.reflect.KProperty

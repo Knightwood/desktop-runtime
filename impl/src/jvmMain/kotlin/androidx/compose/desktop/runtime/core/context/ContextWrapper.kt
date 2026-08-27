@@ -1,4 +1,4 @@
-package androidx.compose.desktop.runtime.context
+package androidx.compose.desktop.runtime.core.context
 
 import androidx.compose.desktop.runtime.activity.ActivityManager
 import androidx.compose.desktop.runtime.core.intent.Intent

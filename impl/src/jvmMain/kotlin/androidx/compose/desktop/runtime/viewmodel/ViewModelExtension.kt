@@ -10,14 +10,14 @@ import java.lang.reflect.Constructor
 
 private val VIEWMODEL_SIGNATURE = listOf<Class<*>>(SavedStateHandle::class.java)
 
-fun <T : ViewModel> createVM(modelClass: Class<T>, extras: CreationExtras): T {
+internal fun <T : ViewModel> createVM(modelClass: Class<T>, extras: CreationExtras): T {
     val constructor = findMatchingConstructor(modelClass, VIEWMODEL_SIGNATURE)
     // doesn't need SavedStateHandle
     constructor ?: // If you are using a stateful constructor and no application is available, we
     // use an instance factory instead.
     return JvmViewModelProviders.createViewModel(modelClass)
 
-    val savedStateHandle =extras.createSavedStateHandle()
+    val savedStateHandle = extras.createSavedStateHandle()
 
     return constructor.newInstance(savedStateHandle)
         ?: throw IllegalArgumentException("ViewModel class $modelClass has no constructor with $VIEWMODEL_SIGNATURE")

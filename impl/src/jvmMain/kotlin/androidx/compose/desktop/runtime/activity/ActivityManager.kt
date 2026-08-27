@@ -1,7 +1,6 @@
 package androidx.compose.desktop.runtime.activity
 
-import androidx.compose.desktop.runtime.context.ContextImpl
-import androidx.compose.desktop.runtime.core.Singularity
+import androidx.compose.desktop.runtime.core.context.ContextImpl
 import androidx.compose.desktop.runtime.core.intent.IOperateIntentProcessor
 import androidx.compose.desktop.runtime.core.intent.IntentProcessor
 import androidx.compose.desktop.runtime.core.intent.LaunchActivityIntent
@@ -9,8 +8,6 @@ import androidx.compose.desktop.runtime.core.intent.LaunchMode
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.jvm.system.di.inject
-import androidx.savedstate.SavedState
-import androidx.savedstate.savedState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.core.parameter.parametersOf

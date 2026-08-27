@@ -3,8 +3,8 @@ package androidx.compose.desktop.runtime.core
 import androidx.annotation.CallSuper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
-import androidx.compose.desktop.runtime.context.ContextWrapper
-import androidx.compose.desktop.runtime.context.Context
+import androidx.compose.desktop.runtime.core.context.ContextWrapper
+import androidx.compose.desktop.runtime.core.context.Context
 import androidx.jvm.system.di.InstanceContext
 import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.jvm.system.di.InstanceKoinHelpers
@@ -18,7 +18,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jetbrains.skiko.MainUIDispatcher
-import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import kotlin.system.exitProcess
 
