@@ -24,6 +24,9 @@ import androidx.jvm.system.core.AppPathProvider
 import androidx.jvm.system.core.keepDirExist
 import androidx.jvm.system.process.ProcessLocker
 import androidx.jvm.system.ui.tray.TrayConf
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.savedstate.SavedState
 import com.github.knightwood.example.components.TextSwitch
 import com.github.knightwood.example.components.render.RenderApiSelector
@@ -33,14 +36,24 @@ import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.*
 import me.i18n.resources.app_name
 import org.jetbrains.compose.resources.stringResource
-import java.awt.SystemColor.window
 import kotlin.random.Random
 
 
 open class MainActivity : Activity() {
     val randoms = Random.nextInt(0, 11)
-    private val logger = logFor(this.toString())
+    private val logger = logFor("MainActivity")
     private val scope = CoroutineScope(Dispatchers.Default) + SupervisorJob()
+//
+//    init {
+//        lifecycleListener = object : LifecycleEventObserver {
+//            override fun onStateChanged(
+//                source: LifecycleOwner,
+//                event: Lifecycle.Event,
+//            ) {
+//                logger.debug("StateChanged to ${event}")
+//            }
+//        }
+//    }
 
     override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
@@ -48,10 +61,10 @@ open class MainActivity : Activity() {
         mainActivity = this
         setContent {
             Window(
-                onCloseRequest = { finish() },
+                onCloseRequest = { hide() },
                 visible = mVisibility,
             ) {
-                Link2ComposeWindow {
+                LinkComposeWindow {
                     val settings = RenderSettingsProvider.flow.collectAsState(initial = RenderSettingsProvider.defaultValue())
                     MaterialTheme {
                         Column {
@@ -60,6 +73,7 @@ open class MainActivity : Activity() {
                                 val intent = Intent(this@MainActivity, StateTestActivity::class.java)
                                 //需要注意，activity取回保存起来的数据依靠uuid，因此需要在这里设置uuid
                                 intent.token = Token("11")
+                                intent.multiApplication = true
                                 startActivity(intent)
                             }) {
                                 Text("点击启动状态测试页面")
@@ -179,32 +193,26 @@ open class MainActivity : Activity() {
 
     override fun onReStart(intent: Intent?) {
         super.onReStart(intent)
-        logger.info("onReStart")
     }
 
     override fun onPause() {
         super.onPause()
-        logger.info("onPause")
     }
 
     override fun onResume() {
         super.onResume()
-        logger.info("onResume")
     }
 
     override fun onStart() {
         super.onStart()
-        logger.info("onStart")
     }
 
     override fun onStop() {
         super.onStop()
-        logger.info("onStop")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         mainActivity = null
-        logger.info("onDestroy")
     }
 }

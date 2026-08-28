@@ -1,9 +1,11 @@
 package androidx.compose.desktop.runtime.fragment
 
 import androidx.annotation.CallSuper
+import androidx.compose.desktop.runtime.core.context.Context
 import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver
 import androidx.compose.desktop.runtime.savestate.Token
+import androidx.compose.desktop.runtime.savestate.WeakReferenceDelegate
 import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.jvm.system.di.inject
 import androidx.lifecycle.Lifecycle
@@ -18,7 +20,7 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.savedstate.SavedState
 import com.github.knightwood.slf4j.kotlin.info
 import com.github.knightwood.slf4j.kotlin.kLogger
-import java.lang.ref.WeakReference
+import com.github.knightwood.slf4j.kotlin.logFor
 
 /**
  * 无ui的通用生命周期组件,提供如下功能:
@@ -40,8 +42,11 @@ import java.lang.ref.WeakReference
 abstract class LifecycleComponent() :
     LifecycleOwner,
     InstanceKoinComponent {
+    private val logger = logFor("LifecycleComponent")
     val stateSaver by inject<ApplicationSaveStateSaver>()
-    internal var token: Token? = null
+    protected var token: Token? = null
+        private set
+    protected var context by WeakReferenceDelegate<Context>()
 
     /**
      * 在[ApplicationSaveStateSaver]中使用token注册一个SaveState,用于存放所有需要保存的状态
@@ -61,10 +66,13 @@ abstract class LifecycleComponent() :
      */
     protected val idn: Token get() = token ?: finalId
 
-    private lateinit var hostLifecycle: WeakReference<Lifecycle>
+    private var hostLifecycle by WeakReferenceDelegate<Lifecycle>()
+    protected var isAttachedHostLifecycle = false
+        private set
     private val hostLifecycleObserver = object : LifecycleEventObserver {
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-            kLogger.info { "host lifecycle changed: $event" }
+            lifecycleListener?.onStateChanged(source, event)
+//            logger.info { "host lifecycle changed: $event" }
             if (event != Lifecycle.Event.ON_CREATE) {
                 syncLife(event)
             }
@@ -73,7 +81,7 @@ abstract class LifecycleComponent() :
                 ON_PAUSE -> onPause()
                 ON_STOP -> onStop()
                 ON_DESTROY -> {
-                    deSyncHostLifecycle()
+                    deAttachHostLifecycle()
                     onDestroy()
                 }
 
@@ -83,8 +91,13 @@ abstract class LifecycleComponent() :
         }
     }
 
+    /**
+     * 子类可以指定此实例用于监听宿主的生命周期变化
+     */
+    protected var lifecycleListener: LifecycleEventObserver? = null
+
     @Suppress("LeakingThis")
-    private var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this)
+    internal var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this)
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
 
@@ -95,8 +108,9 @@ abstract class LifecycleComponent() :
      * @param token 保存状态的关联id,若传入null,则不使用状态保存功能
      * @param hostLifecycle 父组件生命周期(可选).用于将当前组件实例生命周期关联到父组件的生命周期
      */
-    open fun attach(token: Token? = null, hostLifecycle: Lifecycle? = null) {
+    open fun attach(token: Token? = null, context: Context, hostLifecycle: Lifecycle? = null) {
         this.token = token
+        this.context = context
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
         onCreate(savedState)
         //如果有传入父组件生命周期,则同步父组件生命周期到当前实例
@@ -105,16 +119,21 @@ abstract class LifecycleComponent() :
         }
     }
 
-    fun isAttachedHostLifecycle(): Boolean {
-        return (this::hostLifecycle.isInitialized)
+    /**
+     * @return 若已设置host lifecycle,且开始观察host lifecycle, 返回true
+     */
+    fun isAttachedHost(): Boolean {
+        return (this.hostLifecycle != null && isAttachedHostLifecycle)
     }
 
-    fun attachHostLifecycle(lifecycle: Lifecycle) {
-        if (isAttachedHostLifecycle()) {
+    fun attachHostLifecycle(hostLifecycle: Lifecycle) {
+        if (isAttachedHost()) {
             throw IllegalStateException("Already attached to hostLifecycle")
         }
-        this.hostLifecycle = WeakReference(lifecycle)
-        lifecycle.addObserver(hostLifecycleObserver)
+        this.hostLifecycle = hostLifecycle
+//        logger.debug("添加对象: ${hostLifecycleObserver.hashCode()}")
+        hostLifecycle.addObserver(hostLifecycleObserver)
+        isAttachedHostLifecycle = true
     }
 
     /**
@@ -124,6 +143,18 @@ abstract class LifecycleComponent() :
     protected fun syncLife(event: Lifecycle.Event) {
         lifecycleRegistry.currentState = event.targetState
         lifecycleRegistry.handleLifecycleEvent(event)
+    }
+
+    /**
+     * 断开与父组件的生命周期链接
+     */
+    protected fun deAttachHostLifecycle() {
+//        logger.debug("移除对象: ${hostLifecycleObserver.hashCode()}")
+//        logger.debug("hostLifecycle is null: ${hostLifecycle == null}")
+        //移除对于宿主的生命周期监听
+        hostLifecycle?.removeObserver(hostLifecycleObserver)
+        hostLifecycle = null
+        isAttachedHostLifecycle = false
     }
 
     @CallSuper
@@ -160,23 +191,15 @@ abstract class LifecycleComponent() :
     @CallSuper
     open fun onDestroy() {
         savedState?.let { onSaveInstanceState(it) }
+        context = null
     }
 
     /**
-     * 手动结束生命周期
+     * 跳过宿主生命周期变化立即结束此实例生命周期
      */
     open fun finish() {
+        deAttachHostLifecycle()
         syncLife(Lifecycle.Event.ON_DESTROY)
-        deSyncHostLifecycle()
         onDestroy()//必须要在同步生命周期前调用，否则lifecycleScope会结束，导致无法正常释放
-    }
-
-    /**
-     * 断开与父组件的生命周期链接
-     */
-    protected fun deSyncHostLifecycle() {
-        //移除对于宿主的生命周期监听
-        hostLifecycle.get()?.removeObserver(hostLifecycleObserver)
-        this.hostLifecycle.clear()
     }
 }

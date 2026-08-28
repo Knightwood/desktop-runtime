@@ -115,7 +115,6 @@ open class ComponentActivity : Activity(),
     HasDefaultViewModelProviderFactory,
     SavedStateRegistryOwner
 {
-    private val logger = logFor("ComponentActivity")
     private var _viewModelStore: ViewModelStore? = null
     override val viewModelStore: ViewModelStore
         /**
@@ -215,7 +214,7 @@ open class ComponentActivity : Activity(),
      * 同步Compose Window的生命周期,为compose提供生命周期组件
      */
     @Composable
-    override fun FrameWindowScope.Link2ComposeWindow(content: @Composable FrameWindowScope.() -> Unit){
+    override fun FrameWindowScope.LinkComposeWindow(content: @Composable FrameWindowScope.() -> Unit){
         this@ComponentActivity.composeWindow = this.window
         //这里的lifecycle是composeContainer的提供的
         val lc: LifecycleOwner = LocalLifecycleOwner.current
@@ -234,6 +233,8 @@ open class ComponentActivity : Activity(),
         ) {
             content()
         }
+        //显示添加到Activity的弹窗
+        dialogsMgr.Content(this)
     }
 
 }

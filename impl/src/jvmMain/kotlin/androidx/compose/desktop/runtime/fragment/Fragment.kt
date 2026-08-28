@@ -1,11 +1,16 @@
 package androidx.compose.desktop.runtime.fragment
 
 import androidx.compose.desktop.runtime.activity.Activity
+import androidx.compose.desktop.runtime.core.context.Context
 import androidx.compose.desktop.runtime.savestate.ProvideAndroidCompositionLocals
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
+import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlin.reflect.KClass
 
 /**
@@ -40,10 +45,20 @@ import kotlin.reflect.KClass
  * a.attach(Token("a1"),null)//可以暂时不绑定生命周期,随后使用Fragment.attachHostLifecycle指定跟随的宿主生命周期
  * 3.显示界面
  * a.Screen()
+ *
+ * 或者
+ * val f1 get() = fragmentProvider.obtain<Fragment1>(this, Token("123"))
+ * val f2 by activityOwnedFragment<Fragment1>(this, Token("124"))
+ *
+ * Column{
+ *     f1.Screen()
+ *     f2.Screen()
+ * }
  * ```
  */
 open class Fragment() : BasicComponent() {
     val mVisibility = mutableStateOf(true)
+    private var destroyed by mutableStateOf(false)
     internal val mComposeView: ComposableView? by lazy {
         onCreateView()
     }
@@ -67,26 +82,39 @@ open class Fragment() : BasicComponent() {
      */
     @Composable
     open fun Screen() {
-        ProvideAndroidCompositionLocals(
-            id = idn.toString(),
-            context = null,
-            activityLifecycleOwner = null,
-            fragmentLifecycleOwner = this,
-            viewModelStoreOwner = this,
-            savedStateRegistryOwner = this
-        ) {
-            if (mVisibility.value) {
-                this.mComposeView?.invoke()
+        if (!destroyed) {
+            ProvideAndroidCompositionLocals(
+                id = idn.toString(),
+                context = context!!,
+                activityLifecycleOwner = null,
+                fragmentLifecycleOwner = this,
+                viewModelStoreOwner = this,
+                savedStateRegistryOwner = this
+            ) {
+                if (mVisibility.value) {
+                    this.mComposeView?.invoke()
+                }
             }
         }
     }
 
     open fun show() {
+        if (destroyed) {
+            throw IllegalStateException("Fragment is already destroyed.")
+        }
         mVisibility.value = true
     }
 
     open fun hide() {
         mVisibility.value = false
+    }
+
+    override fun finish() {
+        if (destroyed) {
+            return
+        }
+        super.finish()
+        destroyed = true
     }
 
     fun interface ComposableView {
@@ -103,21 +131,22 @@ open class Fragment() : BasicComponent() {
  * @param hostLifecycle 宿主生命周期,若传入null,则Fragment具有独立生命周期
  * @param token 标识Fragment保存状态的唯一性,可传入null,表示不使用状态保存恢复功能
  */
-fun <T : Fragment> fragment(cls: KClass<T>, hostLifecycle: Lifecycle?, token: Token? = null): T {
+fun <T : Fragment> fragment(cls: KClass<T>, hostLifecycle: Lifecycle?, context: Context, token: Token? = null): T {
     val constructor = cls.java.getDeclaredConstructor()
     constructor.isAccessible = true
     val instance = constructor.newInstance() as T
-    instance.attach(token, hostLifecycle)
+    instance.attach(token, context, hostLifecycle)
     return instance
 }
+
 /**
  * 生成fragment实例
  * 具有独立生命周期的Fragment,可以使用[Fragment.attachHostLifecycle]指定Fragment实例跟随的宿主生命周期
  * @param hostLifecycle 宿主生命周期,若传入null,则Fragment具有独立生命周期
  * @param token 标识Fragment保存状态的唯一性,可传入null,表示不使用状态保存恢复功能
  */
-inline fun <reified T : Fragment> fragment(hostLifecycle: Lifecycle?, token: Token? = null): T {
-    return fragment(T::class, hostLifecycle, token)
+inline fun <reified T : Fragment> fragment(hostLifecycle: Lifecycle?, context: Context, token: Token? = null): T {
+    return fragment(T::class, hostLifecycle, context, token)
 }
 
 /**
@@ -127,24 +156,24 @@ inline fun <reified T : Fragment> fragment(hostLifecycle: Lifecycle?, token: Tok
  * val instance by activityOwnedFragment<ExampleFragment>(Token("a1"))
  * ```
  */
-inline fun <reified T : Fragment> Activity.activityOwnedFragment(token: Token? = null): Lazy<T> {
+inline fun <reified T : Fragment> Activity.activityOwnedFragment(context: Context, token: Token? = null): Lazy<T> {
     val act = this
-    return act.lifecycle.ownedFragment(token)
+    return act.lifecycle.ownedFragment(context, token)
 }
 
 /**
  * 生成Fragment实例,并使其生命周期跟随@receiver
  * 若@receiver为null,则生成的Fragment实例具有独立生命周期.
- * 具有独立生命周期的Fragment,可以使用[Fragment.attachHostLifecycle]指定Fragment实例跟随的宿主生命周期
+ * 具有独立生命周期的Fragment,可以在创建后使用[Fragment.attachHostLifecycle]指定Fragment实例跟随的宿主生命周期
  */
-inline fun <reified T : Fragment> Lifecycle?.ownedFragment(token: Token? = null): Lazy<T> {
+inline fun <reified T : Fragment> Lifecycle?.ownedFragment(context: Context, token: Token? = null): Lazy<T> {
     val lifecycle = this
     return object : Lazy<T> {
         private var cached: T? = null
         override val value: T
             get() {
                 if (cached == null) {
-                    cached = fragment<T>(lifecycle, token)
+                    cached = fragment<T>(lifecycle, context, token)
                 }
                 return cached!!
             }

@@ -13,7 +13,6 @@ import androidx.lifecycle.viewmodel.*
 import androidx.savedstate.SavedState
 import com.github.knightwood.example.components.SampleButton
 import com.github.knightwood.slf4j.kotlin.logFor
-import com.github.knightwood.slf4j.kotlin.logger
 import kotlin.random.Random
 import kotlin.reflect.KClass
 
@@ -78,7 +77,7 @@ class VMTestActivity : ComponentActivity() {
         setContent {
             //由于状态存储发生在onDestroy阶段，closeActivity为true时才会触发onDestroy
             Window(onCloseRequest = { finish() }) {
-                Link2ComposeWindow {
+                LinkComposeWindow {
                     MaterialTheme {
                         Column {
                             val vm1_value = vm1.value.collectAsState()

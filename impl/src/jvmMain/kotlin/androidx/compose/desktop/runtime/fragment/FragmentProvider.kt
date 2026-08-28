@@ -1,5 +1,6 @@
 package androidx.compose.desktop.runtime.fragment
 
+import androidx.compose.desktop.runtime.core.context.Context
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.lifecycle.Lifecycle
 import kotlin.reflect.KClass
@@ -14,9 +15,10 @@ class FragmentProvider(
     val cache = mutableMapOf<String, Fragment>()
 
     inline fun <reified T : Fragment> obtain(
+        context: Context,
         token: Token? = null,
     ): T {
-        return obtain(T::class, token)
+        return obtain(T::class, context, token)
     }
 
     /**
@@ -24,16 +26,16 @@ class FragmentProvider(
      * 如果有传入token,则使用此token记录实例,如果为传入token,则使用类的hashcode记录实例.
      * 如果你需要创建一个fragment的多个实例,则必须传入token,否则将获取到同一个实例
      */
-    fun <T : Fragment> obtain(cls: KClass<T>, token: Token? = null): T {
+    fun <T : Fragment> obtain(cls: KClass<T>, context: Context, token: Token? = null): T {
         val key = token?.value ?: cls.hashCode().toString()
         return cache.getOrPut(key) {
             val instance =
-                if (cls.java.isAssignableFrom(DialogWindowFragment::class.java)) {
-                    //如果fragment是DialogWindowFragment的子类,则不传入宿主生命周期
-                    fragment<T>(cls, null, token)
-                } else {
-                    fragment<T>(cls, hostLifecycle, token)
-                }
+//                if (cls.java.isAssignableFrom(DialogWindowFragment::class.java)) {
+//                    //如果fragment是DialogWindowFragment的子类,则不传入宿主生命周期
+//                    fragment<T>(cls, null, token)
+//                } else {
+                fragment<T>(cls, hostLifecycle, context, token)
+//                }
             instance
         } as T
     }
@@ -45,7 +47,7 @@ class FragmentProvider(
     fun remove(token: Token? = null) {
         cache.remove(token?.value)?.also {
             //触发状态保存
-            it.onDestroy()
+            it.finish()
         }
     }
 
@@ -56,7 +58,7 @@ class FragmentProvider(
     fun remove(cls: KClass<*>) {
         cache.remove(cls.hashCode().toString())?.also {
             //触发状态保存
-            it.onDestroy()
+            it.finish()
         }
     }
 

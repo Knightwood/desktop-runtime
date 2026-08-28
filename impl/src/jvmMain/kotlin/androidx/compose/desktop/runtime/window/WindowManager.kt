@@ -1,15 +1,15 @@
 package androidx.compose.desktop.runtime.window
 
-import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.window.*
 import androidx.jvm.system.di.InstanceKoinComponent
 import kotlinx.coroutines.*
 import org.jetbrains.skiko.MainUIDispatcher
 
 typealias ApplicationComposableContent = @Composable ApplicationScope.() -> Unit
+typealias WindowComposableContent = @Composable FrameWindowScope.() -> Unit
+typealias DialogWindowComposableContent = @Composable DialogWindowScope.() -> Unit
 typealias ComposableContent = @Composable () -> Unit
 
 /**
@@ -49,7 +49,12 @@ class WindowManager constructor() :
     InstanceKoinComponent {
     val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
 
-    private val windows: SnapshotStateList<ActivityContentEntity> = SnapshotStateList()
+    private val windows: SnapshotStateList<ActivityRootViewEntity> = SnapshotStateList()
+
+    /**
+     * 存储无宿主Window的弹窗
+     */
+    private val dialogsMgr = RootViewMgr<FrameWindowScope?, DialogRootViewEntity>()
     var contentWrapper: ApplicationContentWrapper? = null
         internal set
 
@@ -57,7 +62,7 @@ class WindowManager constructor() :
 
     /**
      * 调用application方法，监听windows列表变化，并创建窗口内容。
-     * 我希望这里观察[windows]的变化，并调用[ActivityContentEntity]的[ActivityContentEntity.windowExec]方法以展示内容。
+     * 我希望这里观察[windows]的变化，并调用[ActivityRootViewEntity]的[ActivityRootViewEntity.windowExec]方法以展示内容。
      * 但同时希望尽可能减少重组，提升性能。
      */
     fun prepare() {
@@ -76,13 +81,14 @@ class WindowManager constructor() :
                 current.rootContent?.invoke(this)
             }
         }
+        dialogsMgr.Content(null)
     }
 
     /**
      * 移除window，这会使window进入onDispose
      */
-    fun deAttachWindow(window: ActivityContentEntity) {
-        window.isAttachedToApplication = false
+    fun deAttachWindow(window: ActivityRootViewEntity) {
+        window.isAttached = false
         windows.remove(window)
     }
 
@@ -90,14 +96,30 @@ class WindowManager constructor() :
      * 添加一个要显示的window，如果添加之前没有window，则调用prepare方法。
      */
     @Synchronized
-    fun attachWindow(window: ActivityContentEntity) {
-        if (window.isAttachedToApplication) return
+    fun attachWindow(window: ActivityRootViewEntity) {
+        if (window.isAttached) return
         windows.add(window)
-        window.isAttachedToApplication = true
+        window.isAttached = true
+    }
+
+    /**
+     * 移除Dialog
+     */
+    fun deAttachDialog(window: DialogRootViewEntity) {
+       dialogsMgr.deAttach(window)
+    }
+
+    /**
+     * 添加一个要显示的Dialog。
+     */
+    @Synchronized
+    fun attachDialog(window: DialogRootViewEntity) {
+       dialogsMgr.attach(window)
     }
 
     fun release() {
         windows.clear()
+        dialogsMgr.clear()
     }
 
     fun exitApplication() {

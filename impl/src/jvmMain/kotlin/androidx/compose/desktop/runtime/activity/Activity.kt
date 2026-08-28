@@ -10,15 +10,21 @@ import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.desktop.runtime.savestate.WeakReferenceDelegate
-import androidx.compose.desktop.runtime.window.ActivityContentEntity
+import androidx.compose.desktop.runtime.utils.UncaughtExceptionContent
+import androidx.compose.desktop.runtime.utils.setUncaughtExceptionHandler
+import androidx.compose.desktop.runtime.window.ActivityRootViewEntity
 import androidx.compose.desktop.runtime.window.ApplicationComposableContent
+import androidx.compose.desktop.runtime.window.ApplicationScopeToken
+import androidx.compose.desktop.runtime.window.DialogRootViewEntity
+import androidx.compose.desktop.runtime.window.RootViewMgr
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.window.FrameWindowScope
@@ -32,12 +38,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
-import androidx.savedstate.compose.LocalSavedStateRegistryOwner
-import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
+import kotlin.concurrent.thread
 
 /**
  * androidx lifecycle 2.9.0-alpha06 Lifecycle.DESTROYED 状态是最终状态，现在，如果尝试将
@@ -150,13 +154,19 @@ import org.slf4j.LoggerFactory
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent {
     private val logger = LoggerFactory.getLogger(this.toString())
-    protected val parentLifecycleObserver = object : LifecycleEventObserver {
+
+    /**
+     * 子类可以指定此实例用于监听Window的生命周期变化
+     */
+    protected var lifecycleListener: LifecycleEventObserver? = null
+    internal val parentLifecycleObserver = object : LifecycleEventObserver {
         /**
          * 观察window的生命周期，并进行同步
          * 当window销毁时，activity的生命周期结束
          */
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-            logger.info("window lifecycle event: $event")
+            lifecycleListener?.onStateChanged(source, event)
+//            logger.info("window lifecycle event: $event")
             /*
             * 有些生命周期事件不需要同步
             * 1. onCreate状态: activity生成实例后会被调用attach方法,开始生命周期流程并进入onCreate状态,此后会显示compose window并同步compose window的生命周期状态.
@@ -176,9 +186,8 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
                 }
 
                 ON_START -> onStart()
-                // on_create事件不需要同步,
-                ON_CREATE -> logger.info("compose window new lifecycle state:onCreate. ignore")
-                ON_ANY -> logger.info("compose window new lifecycle state:ON_ANY. ignore")
+                // on_create事件不需要同步
+                else -> {}
             }
         }
     }
@@ -199,7 +208,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     internal val token: Token?
         get() = intent?.token
 
-    private val finalId = Token(this::class.qualifiedName?:this::class.hashCode().toString())
+    private val finalId = Token(this::class.qualifiedName ?: this::class.hashCode().toString())
 
     /**
      * 上面的token与状态保存和恢复相关,如果不需要使用状态保存和恢复功能,则token为null,
@@ -229,11 +238,30 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     private var finished: Boolean = false
 
     /**
-     * 根视图
+     * 根视图,仅在单Application模式下有用
      */
-    var rootContentView: ActivityContentEntity = ActivityContentEntity()
+    internal var rootViewEntity: ActivityRootViewEntity = ActivityRootViewEntity()
 
+    /**
+     * 如果ComponentDialog配置为模态窗口,
+     * 则显示时会将ComponentDialog根布局插入到其宿主Activity的dialogsSlots中
+     */
+    val dialogsMgr = RootViewMgr<FrameWindowScope?, DialogRootViewEntity>()
+
+    /**
+     * 调用[LinkComposeWindow]后,此变量用于记录当前的ComposeWindow
+     */
     var composeWindow: ComposeWindow? = null
+        internal set
+
+    /**
+     * 启用多Application特性启动Activity, 会使用独立的applicationScope显示根视图,
+     * 而不会将根视图放入WindowManager使用全局applicationScope显示.
+     * 你依旧可以使用finish结束此Activity,会连同独立的application一并销毁.
+     *
+     * 此变量记录启动独立application信息
+     */
+    val multiApplicationToken: ApplicationScopeToken = ApplicationScopeToken(null)
 
     /**
      * 在实现类中需调用Window,将Window中的visible参数指定为此变量才可生效
@@ -292,29 +320,93 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     open fun onStart() {}
 
     /**
-     * 在onCreate函数中调用,设置compose界面,请在content中调用Window以显示窗口
+     * 在子类onCreate函数中调用, 以显示窗口界面.
+     * 在此函数传入content内部需要调用[androidx.compose.ui.window.Window]才可使Activity显示窗口.
+     * 在调用Window函数传入的content内部需调用[LinkComposeWindow]才可使Activity链接ComposeWindow生命周期.
      * ```
-     * setContent {
-     *      Window(
-     *          onCloseRequest = { finish() },
-     *          visible = mVisibility,
-     *      ) {
-     *          Link2ComposeWindow {
-     *              //界面
-     *          }
-     *      }
+     * open class MainActivity : Activity() {
+     *     override fun onCreate(savedInstanceState: SavedState?) {
+     *         super.onCreate(savedInstanceState)
+     *         setContent {
+     *              Window(
+     *                  onCloseRequest = { finish() },
+     *                  visible = mVisibility,
+     *              ) {
+     *                  Link2ComposeWindow {
+     *                      //界面
+     *                  }
+     *              }
+     *         }
+     *     }
      * }
      * ```
+     *
+     * @param content 根视图
      */
-    open fun setContent(content: ApplicationComposableContent) {
+    protected open fun setContent(content: ApplicationComposableContent) {
+        //如果使用多Application特性,则启动单独的application显示窗口
         if (intent?.multiApplication == true) {
-            mainCoroutineScope.launch {
-                application(content = content)
+            val thread = thread {
+                setUncaughtExceptionHandler()
+                try {
+                    application(
+                        exitProcessOnExit = false,
+                        content = {
+                            if (!multiApplicationToken.destroy) {
+                                UncaughtExceptionContent {
+                                    content()
+                                }
+                            }
+                        }
+                    )
+                } catch (ignore: InterruptedException) {
+
+                }
             }
+            multiApplicationToken.thread = thread
         } else {
-            rootContentView.rootContent = content
-            windowManager().attachWindow(rootContentView)
+            // 如果未使用多application特性, 将根视图放入WindowManager的可观察列表,
+            // 促使全局ApplicationScope重组并显示此Activity根视图/窗口
+            this.rootViewEntity.rootContent = content
+            windowManager().attachWindow(this@Activity.rootViewEntity)
         }
+    }
+
+    /**
+     * 1. 使Activity链接ComposeWindow生命周期
+     * 2. 向Compose子视图提供ViewModelStoreOwner、SaveStateRegister、SaveableStateRegister等组件
+     */
+    @Composable
+    protected open fun FrameWindowScope.LinkComposeWindow(content: @Composable FrameWindowScope.() -> Unit) {
+        //这里的lifecycle是composeContainer的提供的
+        val lc: LifecycleOwner = LocalLifecycleOwner.current
+        remember {
+            lc.lifecycle.addObserver(parentLifecycleObserver)
+        }
+        this@Activity.composeWindow = this.window
+        CompositionLocalProvider(
+            LocalContext provides context,
+            ActivityLifecycleOwner provides this@Activity,
+        ) {
+            content()
+        }
+        //显示添加到Activity的弹窗
+        dialogsMgr.Content(this)
+    }
+
+    /**
+     * 移除Dialog
+     */
+    fun deAttachDialog(window: DialogRootViewEntity) {
+        dialogsMgr.deAttach(window)
+    }
+
+    /**
+     * 添加一个要显示的Dialog。
+     */
+    @Synchronized
+    fun attachDialog(window: DialogRootViewEntity) {
+        dialogsMgr.attach(window)
     }
 
     /**
@@ -371,6 +463,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
         savedState?.let { onSaveInstanceState(it) }
         finished = true
         activityManager().remove(idn)
+        dialogsMgr.clear()
     }
 
     /**
@@ -389,12 +482,19 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
      */
     @CallSuper
     open fun finish() {
-        if (rootContentView.isAttachedToApplication) {
-            windowManager().deAttachWindow(rootContentView)
+        if (rootViewEntity.isAttached) {
+            //单Application下显示了窗口
+            windowManager().deAttachWindow(rootViewEntity)
             composeWindow = null
         } else {
-            syncLife(ON_DESTROY)
-            onDestroy()
+            //多application特性不仅启用了, 还显示了窗口界面
+            if (multiApplicationToken.isExist) {
+                multiApplicationToken.dismiss()
+            } else {
+                //没有界面,直接将生命周期同步到ON_DESTROY
+                syncLife(ON_DESTROY)
+                onDestroy()
+            }
         }
     }
 
@@ -418,37 +518,6 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     }
 
     //</editor-fold>
-
-    /**
-     * 同步Compose Window的生命周期
-     * ```
-     * setContent {
-     *      Window(
-     *          onCloseRequest = { finish() },
-     *          visible = mVisibility,
-     *      ) {
-     *          Link2ComposeWindow {
-     *              //界面
-     *          }
-     *      }
-     * }
-     * ```
-     */
-    @Composable
-    open fun FrameWindowScope.Link2ComposeWindow(content: @Composable FrameWindowScope.() -> Unit) {
-        //这里的lifecycle是composeContainer的提供的
-        val lc: LifecycleOwner = LocalLifecycleOwner.current
-        remember {
-            lc.lifecycle.addObserver(parentLifecycleObserver)
-        }
-        this@Activity.composeWindow = this.window
-        CompositionLocalProvider(
-            LocalContext provides context,
-            ActivityLifecycleOwner provides this@Activity,
-        ) {
-            content()
-        }
-    }
 
     companion object {
         const val RESULT_FLOW = "activity_result_flow"

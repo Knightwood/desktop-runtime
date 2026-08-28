@@ -70,7 +70,7 @@ import java.io.Serializable
 @Composable
 fun ProvideAndroidCompositionLocals(
     id: String,
-    context: Context?,
+    context: Context,
     activityLifecycleOwner: LifecycleOwner?,
     fragmentLifecycleOwner: LifecycleOwner? = null,
     viewModelStoreOwner: ViewModelStoreOwner,
@@ -86,7 +86,7 @@ fun ProvideAndroidCompositionLocals(
         }
     }
     CompositionLocalProviderNullable(
-        LocalContext provides (context ?: LocalContext.current),
+        LocalContext provides context,
         ActivityLifecycleOwner provides activityLifecycleOwner,
         FragmentLifecycleOwner provides fragmentLifecycleOwner,
         LocalViewModelStoreOwner provides viewModelStoreOwner,

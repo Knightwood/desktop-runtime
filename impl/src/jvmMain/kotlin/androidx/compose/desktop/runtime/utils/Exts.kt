@@ -1,10 +1,12 @@
-package androidx.compose.desktop.runtime.window
+package androidx.compose.desktop.runtime.utils
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.eventFlow
 import kotlinx.coroutines.launch
+import java.awt.Window
 
 @Composable
 fun LifecycleLogger(flag: String = "") {
