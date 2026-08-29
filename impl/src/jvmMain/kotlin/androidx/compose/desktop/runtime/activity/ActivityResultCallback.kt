@@ -13,5 +13,5 @@ class ActivityResult(
  * activity的结果回调
  */
 fun interface ActivityResultCallback {
-    fun invoke(resultCode: Int, data: Any?)
+    fun invoke(resultCode: Int, data: Bundle?)
 }

@@ -80,6 +80,10 @@ open class MainActivity : Activity() {
                             }
 
                             HorizontalDivider()
+                            var vmActivityResult by remember {
+                                mutableStateOf("")
+                            }
+                            Text("vm测试页面结果${vmActivityResult}")
                             Button(onClick = {
                                 val intent = Intent(
                                     this@MainActivity,
@@ -93,6 +97,7 @@ open class MainActivity : Activity() {
                                 }
                                 scope.launch {
                                     startActivityForResult(intent) { result, data ->
+                                        vmActivityResult = data.toString()
                                         logger.info("data: $data")
                                     }
                                 }

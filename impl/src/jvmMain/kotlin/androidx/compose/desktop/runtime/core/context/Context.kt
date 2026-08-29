@@ -51,4 +51,7 @@ abstract class Context {
         callback: ActivityResultCallback,
     ) {
     }
+    abstract suspend fun startActivityForResult(
+        intent: Intent,
+    ): ActivityResult?
 }

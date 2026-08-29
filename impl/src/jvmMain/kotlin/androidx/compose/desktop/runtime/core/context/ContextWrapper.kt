@@ -1,6 +1,7 @@
 package androidx.compose.desktop.runtime.core.context
 
 import androidx.compose.desktop.runtime.activity.ActivityManager
+import androidx.compose.desktop.runtime.activity.ActivityResult
 import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.activity.ActivityResultCallback
 import androidx.compose.desktop.runtime.core.Application
@@ -40,4 +41,6 @@ open class ContextWrapper : Context() {
         intent: Intent,
         callback: ActivityResultCallback,
     ) = mBase.startActivityForResult(intent, callback)
+
+    override suspend fun startActivityForResult(intent: Intent): ActivityResult? = mBase.startActivityForResult(intent)
 }

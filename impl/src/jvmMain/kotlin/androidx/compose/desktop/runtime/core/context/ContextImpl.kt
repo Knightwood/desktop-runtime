@@ -9,7 +9,14 @@ import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.jvm.system.di.InstanceKoinComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.lastOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.koin.core.qualifier.named
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
+import kotlin.coroutines.suspendCoroutine
 import kotlin.reflect.KClass
 
 open class ContextImpl() : Context(), InstanceKoinComponent {
@@ -51,11 +58,14 @@ open class ContextImpl() : Context(), InstanceKoinComponent {
         callback: ActivityResultCallback,
     ) {
         activityManager().launchActivity(intent)
-        coroutineScope {
-            intent.collectResult {
-                callback.invoke(it.resultCode, it.data)
-            }
+        intent.collectActivityResult {
+            callback.invoke(it.resultCode, it.data)
         }
+    }
+
+    override suspend fun startActivityForResult(intent: Intent): ActivityResult? {
+        activityManager().launchActivity(intent)
+        return intent.activityResultFlow.firstOrNull()
     }
 
     companion object {

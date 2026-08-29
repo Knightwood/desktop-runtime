@@ -1,6 +1,7 @@
 package androidx.compose.desktop.runtime.core.intent
 
 import androidx.compose.desktop.runtime.activity.Activity
+import androidx.compose.desktop.runtime.activity.Activity.Companion.DEFAULT_RESULT_FLOW
 import androidx.compose.desktop.runtime.activity.ActivityResult
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.core.bundle.Bundle
@@ -83,11 +84,12 @@ class LaunchActivityIntent : OperateIntent {
         return flow as MutableSharedFlow<T>
     }
 
+    val activityResultFlow get() = getMailBox<ActivityResult>(DEFAULT_RESULT_FLOW)
     /**
      * 获取默认作为传递结果的信箱
      */
-    suspend fun collectResult(collector: FlowCollector<ActivityResult>) {
-        getMailBox<ActivityResult>(Activity.RESULT_FLOW).collect(collector)
+    suspend fun collectActivityResult(collector: FlowCollector<ActivityResult>) {
+        getMailBox<ActivityResult>(Activity.DEFAULT_RESULT_FLOW).collect(collector)
     }
 
     /**

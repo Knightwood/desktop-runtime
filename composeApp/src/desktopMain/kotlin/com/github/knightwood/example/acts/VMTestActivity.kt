@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.window.Window
+import androidx.core.bundle.bundleOf
 import androidx.lifecycle.*
 import androidx.lifecycle.viewmodel.*
 import androidx.savedstate.SavedState
@@ -87,7 +88,8 @@ class VMTestActivity : ComponentActivity() {
                                 vm1.savedStateHandle.set("odd", randoms)
                             }
                             SampleButton("关闭并setResult") {
-                                setResult(Activity.SUCCESS, vm1.savedStateHandle.getStateFlow("odd", 0).value)
+                                val value = vm1.savedStateHandle.get<Int>("odd")
+                                setResult(Activity.SUCCESS, bundleOf("odd" to value))
                                 finish()
                             }
                         }

@@ -25,9 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
-import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.application
+import androidx.core.bundle.Bundle
 import androidx.core.bundle.bundleOf
 import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.jvm.system.di.inject
@@ -499,27 +499,20 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
 
     //<editor-fold desc="result callback">
     internal val internalResultFlow
-        get() = intent?.getMailBox<ActivityResult>(RESULT_FLOW)
+        get() = intent?.getMailBox<ActivityResult>(DEFAULT_RESULT_FLOW)
             ?: throw IllegalStateException("activity_result_flow can't be null")
 
     /**
      * @param resultCode 结果码，[Activity.SUCCESS]表示成功，[Activity.FAILED]表示失败
      */
-    open fun setResult(resultCode: Int, data: Any) {
-        internalResultFlow.tryEmit(ActivityResult(resultCode, bundleOf("data" to data)))
-    }
-
-    /**
-     * @param resultCode 结果码，[Activity.SUCCESS]表示成功，[Activity.FAILED]表示失败
-     */
-    open fun setResult(resultCode: Int) {
-        internalResultFlow.tryEmit(ActivityResult(resultCode, null))
+    open fun setResult(resultCode: Int, data: Bundle? = null) {
+        internalResultFlow.tryEmit(ActivityResult(resultCode, data))
     }
 
     //</editor-fold>
 
     companion object {
-        const val RESULT_FLOW = "activity_result_flow"
+        const val DEFAULT_RESULT_FLOW = "activity_result_flow"
         const val SUCCESS = 1
         const val FAILED = 0
     }
