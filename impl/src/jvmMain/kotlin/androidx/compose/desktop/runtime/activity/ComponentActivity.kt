@@ -9,12 +9,7 @@ import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.window.FrameWindowScope
-import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.WindowState
-import androidx.compose.ui.window.rememberWindowState
 import androidx.lifecycle.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -23,7 +18,6 @@ import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import com.github.knightwood.slf4j.kotlin.logFor
 import kotlin.reflect.KClass
 
 /**
@@ -234,7 +228,7 @@ open class ComponentActivity : Activity(),
             content()
         }
         //显示添加到Activity的弹窗
-        dialogsMgr.Content(this)
+        dialogsMgr.invoke(Unit)
     }
 
 }

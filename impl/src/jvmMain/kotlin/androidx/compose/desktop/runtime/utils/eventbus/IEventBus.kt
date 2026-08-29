@@ -1,4 +1,4 @@
-package google.androidx.accompanist.eventbus
+package androidx.compose.desktop.runtime.utils.eventbus
 
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver

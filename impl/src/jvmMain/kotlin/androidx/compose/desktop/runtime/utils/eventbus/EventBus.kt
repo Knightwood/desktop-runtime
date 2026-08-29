@@ -1,7 +1,6 @@
-package google.androidx.accompanist.eventbus
+package androidx.compose.desktop.runtime.utils.eventbus
 
 import androidx.lifecycle.LifecycleOwner
-import google.androidx.accompanist.eventbus.observe
 import kotlinx.coroutines.CoroutineScope
 
 

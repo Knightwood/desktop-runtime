@@ -13,49 +13,6 @@ import kotlinx.coroutines.launch
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
 
-interface IActivityLauncher {
-    fun start(intent: LaunchActivityIntent)
-}
-
-/**
- * 实现解析intent,启动activity功能
- * @param stack activity栈
- */
-internal class ActivityLauncher(
-    val stack: List<Activity>,
-    val coroutineScope: CoroutineScope,
-) : IActivityLauncher, InstanceKoinComponent {
-    val launchActivityIntentProcessor = object : IOperateIntentProcessor<LaunchActivityIntent> {
-        override fun process(intent: LaunchActivityIntent): Boolean {
-            start(intent)
-            return true
-        }
-    }
-
-    /**
-     * 实现启动activity逻辑
-     * 所有地方的启动activity最终都会走到这里
-     */
-    override fun start(intent: LaunchActivityIntent) {
-        if (intent.launchMode == LaunchMode.SINGLE_INSTANCE) {
-            val old = stack
-                .map { activity -> activity::class.java to activity }
-                .find { (clazz, instance) ->
-                    clazz.name == intent.targetActivity.name
-                }
-            if (old != null) {
-                val (clazz, instnace) = old
-                instnace.onReStart(intent)
-                return
-            }
-        }
-        coroutineScope.launch {
-            val activity = intent.targetActivity.getDeclaredConstructor().newInstance()
-            activity.attach(ContextImpl.createBaseContextForActivity(), intent)
-        }
-    }
-}
-
 /**
  * 管理所有的activity
  */
@@ -116,5 +73,46 @@ class ActivityManager : InstanceKoinComponent {
         stack.clear()
     }
 
+}
+interface IActivityLauncher {
+    fun start(intent: LaunchActivityIntent)
+}
 
+/**
+ * 实现解析intent,启动activity功能
+ * @param stack activity栈
+ */
+internal class ActivityLauncher(
+    val stack: List<Activity>,
+    val coroutineScope: CoroutineScope,
+) : IActivityLauncher, InstanceKoinComponent {
+    val launchActivityIntentProcessor = object : IOperateIntentProcessor<LaunchActivityIntent> {
+        override fun process(intent: LaunchActivityIntent): Boolean {
+            start(intent)
+            return true
+        }
+    }
+
+    /**
+     * 实现启动activity逻辑
+     * 所有地方的启动activity最终都会走到这里
+     */
+    override fun start(intent: LaunchActivityIntent) {
+        if (intent.launchMode == LaunchMode.SINGLE_INSTANCE) {
+            val old = stack
+                .map { activity -> activity::class.java to activity }
+                .find { (clazz, instance) ->
+                    clazz.name == intent.targetActivity.name
+                }
+            if (old != null) {
+                val (clazz, instnace) = old
+                instnace.onReStart(intent)
+                return
+            }
+        }
+        coroutineScope.launch {
+            val activity = intent.targetActivity.getDeclaredConstructor().newInstance()
+            activity.attach(ContextImpl.createBaseContextForActivity(), intent)
+        }
+    }
 }

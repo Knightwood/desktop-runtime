@@ -85,6 +85,7 @@ open class MainActivity : Activity() {
                                     this@MainActivity,
                                     VMTestActivity::class.java
                                 ).apply {
+                                    multiApplication = true
                                     token = Token("12")
                                     data {
                                         putInt("random", Random.nextInt(12, 20))
@@ -92,7 +93,7 @@ open class MainActivity : Activity() {
                                 }
                                 scope.launch {
                                     startActivityForResult(intent) { result, data ->
-                                        logger.info("result: $result, data: $data")
+                                        logger.info("data: $data")
                                     }
                                 }
                             }) {

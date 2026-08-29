@@ -1,4 +1,4 @@
-package google.androidx.accompanist.eventbus
+package androidx.compose.desktop.runtime.utils.eventbus
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow

@@ -13,17 +13,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.window.ApplicationScope
-import androidx.compose.ui.window.application
 import androidx.jvm.system.core.*
-import androidx.jvm.system.process.ProcessLocker
 import androidx.jvm.system.ui.tray.FixedSystemTray
 import androidx.jvm.system.ui.tray.FixedTrayMenuBuilder.Companion.buildTrayMenu
 import androidx.jvm.system.ui.tray.FixedTrayMenuItem
 import androidx.jvm.system.ui.tray.TraySeparator
 import com.github.knightwood.example.acts.SplashActivity
 import com.github.knightwood.slf4j.kotlin.logFor
-import kotlinx.coroutines.runBlocking
-import java.lang.RuntimeException
 
 //fun main() = startApplication(
 //    SplashActivity::class.java,
@@ -37,7 +33,7 @@ class Main
 fun main() {
     setUncaughtExceptionHandler()
     startApplication<SplashActivity, MainApplication>(
-        applicationContent = object : ApplicationContentWrapper {
+        applicationContent = object : ApplicationRootContent {
             @Composable
             override fun ApplicationScope.invoke(content: ComposableContent) {
                 UncaughtExceptionContent {

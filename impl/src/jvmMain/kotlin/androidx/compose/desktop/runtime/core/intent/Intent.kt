@@ -6,6 +6,7 @@ import androidx.compose.desktop.runtime.savestate.Token
 import androidx.core.bundle.Bundle
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableSharedFlow
+import org.jetbrains.annotations.ApiStatus
 import kotlin.properties.Delegates
 
 sealed interface OperateIntent
@@ -107,39 +108,10 @@ class LaunchActivityIntent : OperateIntent {
         }
 
     /**
-     * If true, the activity will not be attached to current application scope
-     *
-     * 假如，应用启动后先显示splash页面，然后splash关闭自己，接着启动MainActivity，
-     * 且MainActivity的deAttach为true
-     * (即MainActivity的window不被[WindowManager]管理，运行在单独的application中)，
-     * 则需要将splash自己的intent属性中的[exitAppWhenEmpty]修改为false，避免splash关闭后应用进程退出 eg:
-     * ```
-     * fun main() = startApplication(MainApplication::class.java, SplashActivity::class.java){
-     *     exitAppWhenEmpty=false //可以在这里配置
-     * }
-     *
-     * class SplashActivity : Activity() {
-     *     override fun onCreate(intent: Intent) {
-     *         super.onCreate(intent)
-     *         setContentView {
-     *             LaunchedEffect(Unit) {
-     *                 delay(600) // 延迟500毫秒
-     *                 val intent2 = LaunchMode.SINGLE_INSTANCE + "Hello World"
-     *                 intent2.deAttach = false
-     *                 startActivity(MainActivity::class.java, intent2)
-     *                 intent.exitAppWhenEmpty=false //注意这里，也可以动态修改
-     *                 finish()
-     *             }
-     *             //......
-     *         }
-     *     }
-     * }
-     *
-     * class MainActivity : ComponentActivity() {
-     *  //.....
-     * }
-     * ```
+     * true: 目标activity显示的窗口将运行在单独的application中
+     * 警告: 这是测试功能, 目前发现启用此功能会造成状态偶尔无法恢复(关闭Activity后比较短的间隔内再次启动Activity, 无法恢复状态)
      */
+    @ApiStatus.Experimental
     var multiApplication: Boolean = false
 
     private constructor()

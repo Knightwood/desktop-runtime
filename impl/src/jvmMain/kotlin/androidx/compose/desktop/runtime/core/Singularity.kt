@@ -5,7 +5,7 @@ import androidx.compose.desktop.runtime.activity.ActivityManager
 import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.core.context.ContextImpl
 import androidx.compose.desktop.runtime.di.getServiceInstance
-import androidx.compose.desktop.runtime.window.ApplicationContentWrapper
+import androidx.compose.desktop.runtime.window.ApplicationRootContent
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.jvm.system.core.PathService
 import androidx.jvm.system.di.InstanceContext
@@ -46,7 +46,7 @@ object Singularity {
      */
     inline fun <reified T : Activity, reified R : Application> boot(
         awares: Array<Aware> = arrayOf(),
-        applicationContent: ApplicationContentWrapper? = null,
+        applicationContent: ApplicationRootContent? = null,
         noinline intentBuilder: (Intent.() -> Unit)? = null,
     ) {
         boot(
@@ -71,7 +71,7 @@ object Singularity {
         mainActivity: Class<out Activity>,
         applicationClass: Class<out Application> = Application::class.java,
         awares: Array<Aware> = arrayOf(),
-        applicationContent: ApplicationContentWrapper? = null,
+        applicationContent: ApplicationRootContent? = null,
         intentBuilder: (Intent.() -> Unit)? = null,
     ) {
         synchronized(lock) {
@@ -99,7 +99,7 @@ object Singularity {
                 get<ActivityManager>().prepare()
                 get<WindowManager>().also { windowManager ->
                     //将传入compose函数作为ApplicationScope根视图
-                    windowManager.contentWrapper = applicationContent
+                    windowManager.applicationRootContent = applicationContent
                 }
             }
             // 创建Application实例
@@ -158,7 +158,7 @@ object Singularity {
  */
 inline fun <reified T : Activity, reified R : Application> startApplication(
     awares: Array<Aware> = arrayOf(),
-    applicationContent: ApplicationContentWrapper? = null,
+    applicationContent: ApplicationRootContent? = null,
     noinline intentBuilder: (Intent.() -> Unit)? = null,
 ) = Singularity.boot<T, R>(awares = awares, applicationContent = applicationContent, intentBuilder = intentBuilder)
 
@@ -175,7 +175,7 @@ fun startApplication(
     mainActivity: Class<out Activity>,
     applicationClass: Class<out Application> = Application::class.java,
     awares: Array<Aware> = arrayOf(),
-    applicationContent: ApplicationContentWrapper? = null,
+    applicationContent: ApplicationRootContent? = null,
     intentBuilder: (Intent.() -> Unit)? = null,
 ) = Singularity.boot(
     mainActivity = mainActivity,

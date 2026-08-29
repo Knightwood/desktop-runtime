@@ -15,18 +15,17 @@ import androidx.compose.desktop.runtime.utils.setUncaughtExceptionHandler
 import androidx.compose.desktop.runtime.window.ActivityRootViewEntity
 import androidx.compose.desktop.runtime.window.ApplicationComposableContent
 import androidx.compose.desktop.runtime.window.ApplicationScopeToken
-import androidx.compose.desktop.runtime.window.DialogRootViewEntity
+import androidx.compose.desktop.runtime.window.RootViewEntity
 import androidx.compose.desktop.runtime.window.RootViewMgr
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.application
 import androidx.core.bundle.bundleOf
@@ -246,7 +245,7 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
      * 如果ComponentDialog配置为模态窗口,
      * 则显示时会将ComponentDialog根布局插入到其宿主Activity的dialogsSlots中
      */
-    val dialogsMgr = RootViewMgr<FrameWindowScope?, DialogRootViewEntity>()
+    internal val dialogsMgr = RootViewMgr<Unit>()
 
     /**
      * 调用[LinkComposeWindow]后,此变量用于记录当前的ComposeWindow
@@ -391,21 +390,21 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
             content()
         }
         //显示添加到Activity的弹窗
-        dialogsMgr.Content(this)
+        dialogsMgr.invoke(Unit)
     }
 
     /**
      * 移除Dialog
      */
-    fun deAttachDialog(window: DialogRootViewEntity) {
+    fun deAttachDialog(window: RootViewEntity<Unit>) {
         dialogsMgr.deAttach(window)
     }
 
     /**
-     * 添加一个要显示的Dialog。
+     * 添加一个要显示的Dialog
      */
     @Synchronized
-    fun attachDialog(window: DialogRootViewEntity) {
+    fun attachDialog(window: RootViewEntity<Unit>) {
         dialogsMgr.attach(window)
     }
 

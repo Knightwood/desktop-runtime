@@ -1,45 +1,13 @@
 package androidx.compose.desktop.runtime.window
 
+import androidx.compose.desktop.runtime.activity.ActivityManager
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.window.*
 import androidx.jvm.system.di.InstanceKoinComponent
+import androidx.jvm.system.di.inject
 import kotlinx.coroutines.*
-import org.jetbrains.skiko.MainUIDispatcher
-
-typealias ApplicationComposableContent = @Composable ApplicationScope.() -> Unit
-typealias WindowComposableContent = @Composable FrameWindowScope.() -> Unit
-typealias DialogWindowComposableContent = @Composable DialogWindowScope.() -> Unit
-typealias ComposableContent = @Composable () -> Unit
-
-/**
- * 用于让用户可以手动操控applicationScope，以及内容显示 用法：实现接口，并手动调用接口方法中的函数参数
- *
- * ```
- * object:ApplicationContentWrapper { windows ->
- *         // scope：applicationScope，windows：所有window列表
- *         windows()
- * }
- * ```
- */
-fun interface ApplicationContentWrapper {
-
-    /**
-     * 显示应用程序内容
-     *
-     * @param content 所有的窗口
-     *
-     * 在此方法的实现中必须手动调用 content()，否则将无任何界面显示。
-     *
-     * @receiver scope applicationScope
-     */
-    @Composable
-    operator fun ApplicationScope.invoke(content: ComposableContent)
-}
-
-@Composable
-internal fun ApplicationContentWrapper.ShowUI(scope: ApplicationScope, content: ComposableContent) =
-    scope.invoke(content)
+import org.koin.core.qualifier.named
+import kotlin.getValue
 
 /**
  * 有两种实现方式： 一种是每个window都在新的application块中调用，这个实现会比较简单。
@@ -47,15 +15,56 @@ internal fun ApplicationContentWrapper.ShowUI(scope: ApplicationScope, content: 
  */
 class WindowManager constructor() :
     InstanceKoinComponent {
-    val scope = CoroutineScope(MainUIDispatcher) + SupervisorJob() + CoroutineName("ActivityManager")
-
-    private val windows: SnapshotStateList<ActivityRootViewEntity> = SnapshotStateList()
+    val scope by inject<CoroutineScope>(named<ActivityManager>())
 
     /**
-     * 存储无宿主Window的弹窗
+     * application所有的Window
      */
-    private val dialogsMgr = RootViewMgr<FrameWindowScope?, DialogRootViewEntity>()
-    var contentWrapper: ApplicationContentWrapper? = null
+    private val windows = RootViewMgr<ApplicationScope>()
+
+    /**
+     * 无Window宿主的弹窗
+     */
+    private val dialogsMgr = RootViewMgr<Unit>()
+
+    /**
+     * 多窗口核心原理如下
+     * ```
+     * application {
+     *     windows.invoke(this)
+     * }
+     * ```
+     * 这就造成一个问题:
+     * 用户想在ApplicationScope中调用Tray显示托盘菜单或是在所有compose函数外层添加内容是做不到的
+     * 理想情况应该是:
+     * ```
+     * application {
+     *    //在所有可重组内容外层添加自定义的内容
+     *    MyTheme {
+     *        windows.invoke(this)
+     *    }
+     *
+     *    Tray() //托盘菜单
+     * }
+     * ```
+     *
+     * 因此, 提供了此参数,用于让用户可以获取ApplicationScope,以及操控所有compose内容显示时机
+     * ```
+     * startApplication<SplashActivity, MainApplication>(
+     *     applicationContent = object : ApplicationRootContent {
+     *         @Composable
+     *         override fun ApplicationScope.invoke(content: ComposableContent) {
+     *             UncaughtExceptionContent {
+     *                 content() // 所有的窗口,可重组内容 关联的是 WindowManager中的AllWindowUi函数
+     *                 SystemTray()
+     *             }
+     *         }
+     *     }
+     * )
+     *
+     * ```
+     */
+    var applicationRootContent: ApplicationRootContent? = null
         internal set
 
     private var applicationScope: ApplicationScope? = null
@@ -70,26 +79,21 @@ class WindowManager constructor() :
         //exitProcessOnExit = false 避免主线程结束
         application(exitProcessOnExit = false) {
             this@WindowManager.applicationScope = this
-            contentWrapper?.ShowUI(scope = this, content = { AllWindowUi() }) ?: this.AllWindowUi()
+            applicationRootContent?.ShowUI(scope = this, content = { AllWindowUi() }) ?: this.AllWindowUi()
         }
     }
 
     @Composable
     private fun ApplicationScope.AllWindowUi() {
-        windows.forEach { current ->
-            key(current) {//避免无谓的重组
-                current.rootContent?.invoke(this)
-            }
-        }
-        dialogsMgr.Content(null)
+        windows.invoke(this)
+        dialogsMgr.invoke(Unit)
     }
 
     /**
      * 移除window，这会使window进入onDispose
      */
     fun deAttachWindow(window: ActivityRootViewEntity) {
-        window.isAttached = false
-        windows.remove(window)
+        windows.deAttach(window)
     }
 
     /**
@@ -97,24 +101,22 @@ class WindowManager constructor() :
      */
     @Synchronized
     fun attachWindow(window: ActivityRootViewEntity) {
-        if (window.isAttached) return
-        windows.add(window)
-        window.isAttached = true
+        windows.attach(window)
     }
 
     /**
      * 移除Dialog
      */
-    fun deAttachDialog(window: DialogRootViewEntity) {
-       dialogsMgr.deAttach(window)
+    fun deAttachDialog(window: RootViewEntity<Unit>) {
+        dialogsMgr.deAttach(window)
     }
 
     /**
-     * 添加一个要显示的Dialog。
+     * 添加一个要显示的Dialog
      */
     @Synchronized
-    fun attachDialog(window: DialogRootViewEntity) {
-       dialogsMgr.attach(window)
+    fun attachDialog(window: RootViewEntity<Unit>) {
+        dialogsMgr.attach(window)
     }
 
     fun release() {
@@ -131,3 +133,39 @@ class WindowManager constructor() :
     }
 
 }
+
+typealias ApplicationComposableContent = @Composable ApplicationScope.() -> Unit
+typealias FrameWindowComposableContent = @Composable FrameWindowScope.() -> Unit
+typealias DialogWindowComposableContent = @Composable DialogWindowScope.() -> Unit
+typealias ComposableContent = @Composable () -> Unit
+
+/**
+ * 用于让用户可以手动操控applicationScope，控制所有window的显示实际,
+ *
+ * ```
+ * object : ApplicationContentWrapper { windows ->
+ *     // this: applicationScope
+ *     // windows: 所有window
+ *     windows()
+ * }
+ * ```
+ */
+fun interface ApplicationRootContent {
+
+    /**
+     *
+     * 实现操控所有Window显示时机, 在ApplicationScope中自定义显示内容
+     *
+     * 实现此方法时,必须调用 content参数这个函数，否则将无法显示任何Window。
+     *
+     * @param content WindowManager提供的承载所有窗口的可重组函数
+     * @receiver scope applicationScope
+     */
+    @Composable
+    operator fun ApplicationScope.invoke(content: ComposableContent)
+}
+
+@Composable
+internal fun ApplicationRootContent.ShowUI(scope: ApplicationScope, content: ComposableContent) =
+    scope.invoke(content)
+

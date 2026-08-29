@@ -7,14 +7,12 @@ import androidx.compose.desktop.runtime.fragment.BasicComponent
 import androidx.compose.desktop.runtime.savestate.ProvideAndroidCompositionLocals
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.DialogWindowScope
-import androidx.compose.ui.window.FrameWindowScope
+import androidx.compose.ui.window.WindowScope
 import androidx.jvm.system.di.inject
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Lifecycle.Event.ON_DESTROY
@@ -63,9 +61,9 @@ import kotlin.reflect.KClass
  */
 open class ComponentDialog : BasicComponent() {
     val mVisibility = mutableStateOf(false)
-    internal var rootViewEntity: DialogRootViewEntity = DialogRootViewEntity()
+    internal var rootViewEntity = RootViewEntity<Unit>()
     internal var parent: ComponentDialog? = null
-    internal val childrenDialogs = RootViewMgr<FrameWindowScope?, DialogRootViewEntity>()
+    internal val childrenDialogs = RootViewMgr<Unit>()
     val windowManager by inject<WindowManager>()
     internal var modal = false
     private var destroyed by mutableStateOf(false)
@@ -74,7 +72,7 @@ open class ComponentDialog : BasicComponent() {
         super.attach(token, context, null)
     }
 
-    fun setContentView(content: @Composable FrameWindowScope?.() -> Unit) {
+    fun setContentView(content: @Composable Unit.() -> Unit) {
         this.rootViewEntity.rootContent = content
     }
 
@@ -152,14 +150,14 @@ open class ComponentDialog : BasicComponent() {
         ) {
             content()
         }
-        childrenDialogs.Content(null)
+        childrenDialogs.invoke(Unit)
     }
 
     //<editor-fold desc="生成嵌套弹窗">
     /**
      * 移除Dialog
      */
-    internal fun deAttachDialog(window: DialogRootViewEntity) {
+    internal fun deAttachDialog(window: RootViewEntity<Unit>) {
         childrenDialogs.deAttach(window)
     }
 
@@ -167,7 +165,7 @@ open class ComponentDialog : BasicComponent() {
      * 添加一个要显示的Dialog。
      */
     @Synchronized
-    internal fun attachDialog(window: DialogRootViewEntity) {
+    internal fun attachDialog(window: RootViewEntity<Unit>) {
         childrenDialogs.attach(window)
     }
 
