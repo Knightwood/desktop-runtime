@@ -1,0 +1,42 @@
+# jvm only，能用于桌面端，但android平台不可用的依赖
+[versions]
+#jna
+jna = "5.16.0"
+pf4j = "3.13.0"
+[libraries]
+
+# swing主题包
+github-swing-theme-flat = { module = "com.formdev:flatlaf", version = "3.7.2" }
+# jna
+jna-core = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
+
+jfreechart = { module = "org.jfree:jfreechart", version = "1.5.5" }
+
+jserial-port ={module="com.fazecast:jSerialComm",version="2.11.0"}
+# 日志输出。
+slf4j-api = { module = "org.slf4j:slf4j-api", version = "2.0.15" }
+# android平台也可以使用原版logback，也可以使用logback-android，一个第三方作者写的。
+# 注意android 12开始才支持java 11，如果使用原版logback，需要使用1.3.15版本
+slf4j-logback = { module = "ch.qos.logback:logback-classic", version = "1.5.12" }
+slf4j-logback-old = { module = "ch.qos.logback:logback-classic", version = "1.3.15" }
+slf4j-api-kotlin = { module = "com.github.knightwood:slf4j-api-kotlin", version = "0.0.7" }
+log4j-to-slf4j = { module = "org.apache.logging.log4j:log4j-to-slf4j", version = "2.8.2" }
+
+pf4j = { module = "org.pf4j:pf4j", version.ref = "pf4j" }
+pf4j-processor = { module = "org.pf4j:pf4j", version.ref = "pf4j" }
+
+pdf-box = { module = "org.apache.pdfbox:pdfbox", version = "3.0.4" }
+
+jxls = { module = "org.jxls:jxls-poi", version = "3.0.0" }
+jxls-logging = { module = "commons-logging:commons-logging", version = "1.2" } # jxls依赖的日志输出
+
+[plugins]
+# fatjar
+fatjar = { id = "com.gradleup.shadow", version = "9.0.0-beta13" }
+
+[bundles]
+
+logging-api = ["slf4j-api", "slf4j-api-kotlin"]
+logging = ["slf4j-api", "slf4j-api-kotlin", "slf4j-logback"]
+logging-android = ["slf4j-api", "slf4j-api-kotlin", "slf4j-logback-old"]

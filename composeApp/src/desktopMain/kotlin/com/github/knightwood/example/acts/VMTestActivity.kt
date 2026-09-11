@@ -2,6 +2,8 @@ package com.github.knightwood.example.acts
 
 import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.activity.ComponentActivity
+import androidx.compose.desktop.runtime.viewmodel.create
+import androidx.compose.desktop.runtime.viewmodel.mutableCreationExtrasOf
 import androidx.compose.desktop.runtime.viewmodel.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
@@ -75,6 +77,14 @@ class VMTestActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: SavedState?) {
         super.onCreate(savedInstanceState)
+        val example = ViewModelProvider.create(
+            owner = this,
+            creationExtras = mutableCreationExtrasOf {
+                this[TestViewModel1.key] = intent?.getData<Int>("random") ?: 11//从 intent中读取数据
+            },
+            factory = TestViewModel1.factory
+        )[TestViewModel1::class]
+
         setContent {
             //由于状态存储发生在onDestroy阶段，closeActivity为true时才会触发onDestroy
             Window(onCloseRequest = { finish() }) {

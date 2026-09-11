@@ -1,48 +1,15 @@
 package androidx.compose.desktop.runtime.viewmodel
 
+import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.Factory
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.CreationExtras
 import java.lang.reflect.Constructor
-
-
-
-private val VIEWMODEL_SIGNATURE = listOf<Class<*>>(SavedStateHandle::class.java)
-
-internal fun <T : ViewModel> createVM(modelClass: Class<T>, extras: CreationExtras): T {
-    val constructor = findMatchingConstructor(modelClass, VIEWMODEL_SIGNATURE)
-    // doesn't need SavedStateHandle
-    constructor ?: // If you are using a stateful constructor and no application is available, we
-    // use an instance factory instead.
-    return JvmViewModelProviders.createViewModel(modelClass)
-
-    val savedStateHandle = extras.createSavedStateHandle()
-
-    return constructor.newInstance(savedStateHandle)
-        ?: throw IllegalArgumentException("ViewModel class $modelClass has no constructor with $VIEWMODEL_SIGNATURE")
-}
-
-internal fun <T> findMatchingConstructor(
-    modelClass: Class<T>,
-    signature: List<Class<*>>
-): Constructor<T>? {
-    for (constructor in modelClass.constructors) {
-        val parameterTypes = constructor.parameterTypes.toList()
-        if (signature == parameterTypes) {
-            @Suppress("UNCHECKED_CAST")
-            return constructor as Constructor<T>
-        }
-        if (signature.size == parameterTypes.size && parameterTypes.containsAll(signature)) {
-            throw UnsupportedOperationException(
-                "Class ${modelClass.simpleName} must have parameters in the proper " +
-                        "order: $signature"
-            )
-        }
-    }
-    return null
-}
-
+import kotlin.reflect.KClass
 
 internal object JvmViewModelProviders {
 
@@ -63,3 +30,32 @@ internal object JvmViewModelProviders {
         }
 }
 
+internal object ViewModelProviders {
+
+    internal fun getDefaultFactory(owner: ViewModelStoreOwner): ViewModelProvider.Factory =
+        if (owner is HasDefaultViewModelProviderFactory) {
+            owner.defaultViewModelProviderFactory
+        } else {
+            DefaultViewModelProviderFactory
+        }
+
+    internal fun getDefaultCreationExtras(owner: ViewModelStoreOwner): CreationExtras =
+        if (owner is HasDefaultViewModelProviderFactory) {
+            owner.defaultViewModelCreationExtras
+        } else {
+            CreationExtras.Empty
+        }
+}
+
+internal object DefaultViewModelProviderFactory : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
+        return JvmViewModelProviders.createViewModel(modelClass.java)
+    }
+}
+
+@JvmOverloads
+public fun ViewModelProvider.Companion.create(
+    owner: ViewModelStoreOwner,
+    factory: Factory = ViewModelProviders.getDefaultFactory(owner),
+    creationExtras: CreationExtras = ViewModelProviders.getDefaultCreationExtras(owner),
+): ViewModelProvider = ViewModelProvider.create(owner.viewModelStore, factory, creationExtras)

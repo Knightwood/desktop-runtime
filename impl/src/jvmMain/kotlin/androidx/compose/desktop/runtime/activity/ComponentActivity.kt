@@ -5,6 +5,7 @@ package androidx.compose.desktop.runtime.activity
 import androidx.annotation.CallSuper
 import androidx.compose.desktop.runtime.core.Singularity
 import androidx.compose.desktop.runtime.savestate.ProvideAndroidCompositionLocals
+import androidx.compose.desktop.runtime.viewmodel.ViewModelProviders
 import androidx.compose.desktop.runtime.viewmodel.createVM
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -184,11 +185,7 @@ open class ComponentActivity : Activity(),
     }
 
     override val defaultViewModelProviderFactory: ViewModelProvider.Factory by lazy {
-        object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
-                return createVM(modelClass.java, extras)
-            }
-        }
+        androidx.compose.desktop.runtime.viewmodel.SavedStateViewModelFactory
     }
 
     public override val defaultViewModelCreationExtras: CreationExtras

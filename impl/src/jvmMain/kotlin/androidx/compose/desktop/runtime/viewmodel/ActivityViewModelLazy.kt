@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModelProvider.Factory
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.compose.desktop.runtime.activity.ComponentActivity
 import androidx.compose.desktop.runtime.fragment.BasicComponent
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStoreOwner
 
 /**
  * ComponentActivity实现了ViewModelStoreOwner接口， 所以可以在Activity中生成viewModel 示例：
@@ -66,3 +68,6 @@ public inline fun <reified VM : ViewModel> BasicComponent.viewModels(
         { extrasProducer?.invoke() ?: this.defaultViewModelCreationExtras }
     )
 }
+
+
+

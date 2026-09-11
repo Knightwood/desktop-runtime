@@ -36,6 +36,11 @@ dependencyResolutionManagement {
         maven("https://maven.aliyun.com/repository/central")
         maven("https://oss.sonatype.org/content/repositories/snapshots/")
     }
+    versionCatalogs {
+        create("jvms") {
+            from(files("./gradle/jvm.versions.toml"))
+        }
+    }
 }
 
 include(":composeApp")
