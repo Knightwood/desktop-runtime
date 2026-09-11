@@ -1,5 +1,6 @@
 rootProject.name = "desktop-activity"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+includeBuild("./build-logic")
 
 pluginManagement {
     repositories {
@@ -35,6 +36,7 @@ dependencyResolutionManagement {
         maven("https://maven.aliyun.com/repository/public/")
         maven("https://maven.aliyun.com/repository/central")
         maven("https://oss.sonatype.org/content/repositories/snapshots/")
+        maven("./build-logic/repo")
     }
     versionCatalogs {
         create("jvms") {
@@ -44,8 +46,11 @@ dependencyResolutionManagement {
 }
 
 include(":composeApp")
-include(":impl")
-include(":system-impl:spi")
-include(":system-impl:linux")
-include(":system-impl:win")
-include(":system-impl:mac")
+include(":framework:common")
+include(":framework:compose")
+include(":framework:swing")
+include(":toolkit:spi")
+include(":toolkit:linux")
+include(":toolkit:win")
+include(":toolkit:mac")
+include(":compose-tray")

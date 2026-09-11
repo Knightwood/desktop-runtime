@@ -65,17 +65,19 @@ kotlin {
             }
             implementation(libs.core.bundle)
             implementation(libs.kotlin.coroutines.swing)
-            implementation(project(":impl"))
-            implementation(project(":system-impl:spi"))
+            implementation(project(":framework:common"))
+            implementation(project(":framework:compose"))
+            implementation(project(":compose-tray"))
+            implementation(project(":toolkit:spi"))
             when (currentOS) {
                 SystemOs.Linux -> {
-                    implementation(project(":system-impl:linux"))
+                    implementation(project(":toolkit:linux"))
                 }
                 SystemOs.Windows -> {
-                    implementation(project(":system-impl:win"))
+                    implementation(project(":toolkit:win"))
                 }
                 else -> {
-                    implementation(project(":system-impl:mac"))
+                    implementation(project(":toolkit:mac"))
                 }
             }
 //            implementation("com.dorkbox:SystemTray:4.4")

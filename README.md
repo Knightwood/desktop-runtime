@@ -46,6 +46,21 @@ implementation("com.github.knightwood:jvm-system-spi:1.0.0"){ isChanging=true }
 implementation("com.github.knightwood:jvm-system-win:1.0.0")
 ```
 
+```kotlin
+val group = "com.github.knightwood.desktop"
+val version = "0.1.1"
+implementation("$group:framework-common:$version")
+implementation("$group:framework-compose:$version")
+implementation("$group:framework-swing:$version")
+implementation("$group:toolkit-spi:$version")
+implementation("$group:toolkit-mac:$version")
+implementation("$group:toolkit-win:$version")
+implementation("$group:toolkit-linux:$version")
+implementation("$group:compose-tray:$version")
+
+```
+
+
 ###  使用
 #### 问题
 1. 在某些系统中无法显示菜单
