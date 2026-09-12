@@ -265,6 +265,11 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
      * 在实现类中需调用Window,将Window中的visible参数指定为此变量才可生效
      */
     var mVisibility by mutableStateOf(true)
+
+    init {
+        lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
+    }
+
     fun show() {
         mVisibility = true
     }
@@ -283,9 +288,8 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
         intent: Intent,
     ) {
         this.intent = intent
-        attachBaseContext(context)
         activityManager().register(idn, this@Activity)
-        lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
+        attachBaseContext(context)
         onCreate(savedState)
     }
 

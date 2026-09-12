@@ -1,8 +1,6 @@
 package androidx.compose.desktop.runtime.savestate
 
 /**
- * 接口：IToken
- *
  * 作用：作为 Token 值类的「装箱视图」暴露给 Java 使用。
  *
  * 背景：
@@ -41,11 +39,6 @@ value class Token(
 ) : IToken
 
 /**
- * 伴生工厂：Tokens
- *
- * 用 object + @JvmStatic 的方式，向 Java 暴露一个静态工厂方法。
- *
- * 关键点：
  *  - 返回类型写成 IToken（接口），而不是 Token（value class）。
  *    这是为了让 Java 能正常调用：因为 value class 出现在签名中会被 name mangling，
  *    而接口不会，Java 可以毫无障碍地调用 of(...)。

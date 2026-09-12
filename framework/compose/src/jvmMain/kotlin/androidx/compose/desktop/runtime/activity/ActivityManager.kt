@@ -1,7 +1,9 @@
 package androidx.compose.desktop.runtime.activity
 
 import androidx.compose.desktop.runtime.core.context.ContextImpl
+import androidx.compose.desktop.runtime.core.getServiceInstance
 import androidx.compose.desktop.runtime.core.intent.IOperateIntentProcessor
+import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.core.intent.IntentProcessor
 import androidx.compose.desktop.runtime.core.intent.LaunchActivityIntent
 import androidx.compose.desktop.runtime.core.intent.LaunchMode
@@ -10,6 +12,10 @@ import androidx.compose.desktop.runtime.savestate.Token
 import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.jvm.system.di.inject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
@@ -27,9 +33,7 @@ class ActivityManager : InstanceKoinComponent {
     internal val stack = mutableListOf<Activity>()
     val activityStack: List<Activity> get() = stack
 
-    private val launcherManager by inject<ActivityLauncher>() {
-        parametersOf(stack, scope)
-    }
+    val launcherManager: IActivityLauncher = ActivityLauncher(stack, scope)
 
     fun launchActivity(intent: LaunchActivityIntent) {
         launcherManager.start(intent)
@@ -39,9 +43,6 @@ class ActivityManager : InstanceKoinComponent {
      * 好吧，目前没有可实现的
      */
     fun prepare(): ActivityManager {
-        getKoin().get<IntentProcessor>().registerProcessor(
-            launcherManager.launchActivityIntentProcessor
-        )
         return this
     }
 
@@ -74,7 +75,51 @@ class ActivityManager : InstanceKoinComponent {
         stack.clear()
     }
 
+    companion object {
+
+        fun startActivity(
+            intent: Intent,
+        ) {
+            getServiceInstance<ActivityManager>().launchActivity(intent)
+        }
+
+        /**
+         * 在[ActivityManager.scope]中生成并运行activity，如此，activity就跑在ui（主）线程上
+         */
+        suspend fun startActivityForResultSuspend(
+            intent: Intent,
+            callback: ActivityResultCallback,
+        ) {
+            getServiceInstance<ActivityManager>().launchActivity(intent)
+            intent.collectActivityResult {
+                callback.invoke(it.resultCode, it.data)
+            }
+        }
+
+        /**
+         * 在[ActivityManager.scope]中生成并运行activity，如此，activity就跑在ui（主）线程上
+         */
+        fun startActivityForResult(
+            intent: Intent,
+            callback: ActivityResultCallback,
+        ) {
+            val mgr = getServiceInstance<ActivityManager>()
+            mgr.launchActivity(intent)
+            mgr.scope.launch(Dispatchers.Default) {
+                intent.collectActivityResult {
+                    callback.invoke(it.resultCode, it.data)
+                    cancel()
+                }
+            }
+        }
+
+        fun startActivityForResult(intent: Intent): SharedFlow<ActivityResult> {
+            getServiceInstance<ActivityManager>().launchActivity(intent)
+            return intent.activityResultFlow
+        }
+    }
 }
+
 interface IActivityLauncher {
     fun start(intent: LaunchActivityIntent)
 }
@@ -92,6 +137,12 @@ internal class ActivityLauncher(
             start(intent)
             return true
         }
+    }
+
+    init {
+        getKoin()
+            .get<IntentProcessor>()
+            .registerProcessor(launchActivityIntentProcessor)
     }
 
     /**

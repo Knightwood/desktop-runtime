@@ -7,7 +7,9 @@ import androidx.compose.desktop.runtime.core.ServiceBooter;
 import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver;
 import androidx.compose.desktop.runtime.savestate.Token;
 import androidx.compose.desktop.runtime.savestate.Tokens;
+import androidx.core.bundle.Bundle;
 import androidx.jvm.swing.lifecycle.jFrame.ComponentJFrame;
+import androidx.jvm.swing.lifecycle.jFrame.LifecycleJFrame;
 import androidx.jvm.swing.lifecycle.viewmodel.JavaCreationExtras;
 import androidx.jvm.swing.lifecycle.viewmodel.JavaViewModelProvider;
 import androidx.lifecycle.viewmodel.CreationExtras;
@@ -22,20 +24,19 @@ import viewmodel.BookEditorViewModel;
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Date;
 
 public class BookEditorExample extends ComponentJFrame {
     private static final Logger logger = LoggerFactory.getLogger(BookEditorExample.class);
-    private Library library;
-    private SaveButtonListener saveButtonListener;
-
     private BookEditorViewModel viewModel;
 
     public BookEditorExample() {
-        library = new Library();
+        setupUI();
+    }
 
-        setTitle("Book Editor");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    private void setupUI() {
         initComponents();
+        setTitle("Book Editor");
         // Populate the genre combo box
         populateGenreComboBox();
 
@@ -46,7 +47,6 @@ public class BookEditorExample extends ComponentJFrame {
                 saveChanges();
             }
         });
-
         // Cancel button event listener
         cancelButton.addActionListener(new ActionListener() {
             @Override
@@ -72,10 +72,14 @@ public class BookEditorExample extends ComponentJFrame {
                 BookEditorViewModel.Companion.getFactory(),
                 extras
         ).get(BookEditorViewModel.class);
-    }
 
-    public void setSaveButtonListener(SaveButtonListener listener) {
-        this.saveButtonListener = listener;
+        try {
+            Bundle o = viewModel.getSavedStateHandle().get("data");
+            Book book = viewModel.parse(o);
+            resetBookInfo(book);
+        }catch (Exception e){//第一次肯定不会恢复成功
+            logger.error(e.getMessage(),e);
+        }
     }
 
     private void saveChanges() {
@@ -88,20 +92,22 @@ public class BookEditorExample extends ComponentJFrame {
         Author author = new Author(authorName, ""); // Set the author name
 
         // Create Book object
-        Book book = new Book(author, genre, null, bookName);
+        Book book = new Book(author, genre, bookName);
         book.setTaken(isTaken);
-
-        // Notify the listener with the book object
-        if (saveButtonListener != null) {
-            saveButtonListener.onSaveClicked(book);
-        }
-
-        // Reset fields
-        authorNameField.setText("");
-        bookNameField.setText("");
-        genreComboBox.setSelectedIndex(0);
-        isTakenCheckBox.setSelected(false);
         viewModel.print();
+        //回传结果
+        Bundle data = viewModel.save(book);
+        resetBookInfo(new Book());
+        setResult(LifecycleJFrame.SUCCESS, data);
+        finish();
+    }
+
+    private void resetBookInfo(Book book) {
+        // Reset fields
+        authorNameField.setText(book.getAuthor().getName());
+        bookNameField.setText(book.getName());
+        genreComboBox.setSelectedIndex(book.getGenre().ordinal());
+        isTakenCheckBox.setSelected(book.isTaken());
     }
 
 
@@ -122,31 +128,10 @@ public class BookEditorExample extends ComponentJFrame {
         }
     }
 
-    public static void start() {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                BookEditorExample bookEditorExample = new BookEditorExample();
-                ApplicationSaveStateSaver service = ServiceBooter.INSTANCE.getService(ApplicationSaveStateSaver.class);
-                bookEditorExample.setSavedState(service.obtain(Tokens.of("example-book")));
-                bookEditorExample.setVisible(true);
-                bookEditorExample.setSaveButtonListener(new SaveButtonListener() {
-                    @Override
-                    public void onSaveClicked(Book book) {
-                        System.out.println("Entered Book Details:");
-                        System.out.println("Book Title: " + book.getName());
-                        System.out.println("Author: " + book.getAuthor().getName());
-                        System.out.println("Genre: " + book.getGenre());
-                        System.out.println("Is Unavailable: " + book.isTaken());
-                    }
-                });
-            }
-        });
-    }
-
     private void initComponents() {
         // JFormDesigner - Component initialization - DO NOT MODIFY  //GEN-BEGIN:initComponents  @formatter:off
-        dialogPane = new JPanel();
-        contentPane = new JPanel();
+        contentView = new JPanel();
+        bookInfoView = new JPanel();
         label1 = new JLabel();
         bookNameField = new JTextField();
         label2 = new JLabel();
@@ -159,26 +144,26 @@ public class BookEditorExample extends ComponentJFrame {
         cancelButton = new JButton();
 
         //======== this ========
-        var contentPane2 = getContentPane();
-        contentPane2.setLayout(new BorderLayout());
+        var contentPane = getContentPane();
+        contentPane.setLayout(new BorderLayout());
 
-        //======== dialogPane ========
+        //======== contentView ========
         {
-            dialogPane.setBorder(new EmptyBorder(12, 12, 12, 12));
-            dialogPane.setLayout(new BorderLayout());
+            contentView.setBorder(new EmptyBorder(12, 12, 12, 12));
+            contentView.setLayout(new BorderLayout());
 
-            //======== contentPane ========
+            //======== bookInfoView ========
             {
-                contentPane.setLayout(new GridLayoutManager(4, 2, new Insets(0, 0, 0, 0), -1, -1, false, true));
+                bookInfoView.setLayout(new GridLayoutManager(4, 2, new Insets(0, 0, 0, 0), -1, -1, false, true));
 
                 //---- label1 ----
                 label1.setText("\u6807\u9898");
-                contentPane.add(label1, new GridConstraints(0, 0, 1, 1,
+                bookInfoView.add(label1, new GridConstraints(0, 0, 1, 1,
                     GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                     null, null, null));
-                contentPane.add(bookNameField, new GridConstraints(0, 1, 1, 1,
+                bookInfoView.add(bookNameField, new GridConstraints(0, 1, 1, 1,
                     GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
@@ -186,12 +171,12 @@ public class BookEditorExample extends ComponentJFrame {
 
                 //---- label2 ----
                 label2.setText("\u4f5c\u8005");
-                contentPane.add(label2, new GridConstraints(1, 0, 1, 1,
+                bookInfoView.add(label2, new GridConstraints(1, 0, 1, 1,
                     GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                     null, null, null));
-                contentPane.add(authorNameField, new GridConstraints(1, 1, 1, 1,
+                bookInfoView.add(authorNameField, new GridConstraints(1, 1, 1, 1,
                     GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
@@ -199,12 +184,12 @@ public class BookEditorExample extends ComponentJFrame {
 
                 //---- label3 ----
                 label3.setText("\u79cd\u7c7b");
-                contentPane.add(label3, new GridConstraints(2, 0, 1, 1,
+                bookInfoView.add(label3, new GridConstraints(2, 0, 1, 1,
                     GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                     null, null, null));
-                contentPane.add(genreComboBox, new GridConstraints(2, 1, 1, 1,
+                bookInfoView.add(genreComboBox, new GridConstraints(2, 1, 1, 1,
                     GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
@@ -212,13 +197,13 @@ public class BookEditorExample extends ComponentJFrame {
 
                 //---- isTakenCheckBox ----
                 isTakenCheckBox.setText("\u4e0d\u53ef\u7528");
-                contentPane.add(isTakenCheckBox, new GridConstraints(3, 1, 1, 1,
+                bookInfoView.add(isTakenCheckBox, new GridConstraints(3, 1, 1, 1,
                     GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                     GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
                     null, null, null));
             }
-            dialogPane.add(contentPane, BorderLayout.CENTER);
+            contentView.add(bookInfoView, BorderLayout.CENTER);
 
             //======== buttonBar ========
             {
@@ -239,17 +224,17 @@ public class BookEditorExample extends ComponentJFrame {
                     GridBagConstraints.CENTER, GridBagConstraints.BOTH,
                     new Insets(0, 0, 0, 0), 0, 0));
             }
-            dialogPane.add(buttonBar, BorderLayout.PAGE_END);
+            contentView.add(buttonBar, BorderLayout.PAGE_END);
         }
-        contentPane2.add(dialogPane, BorderLayout.CENTER);
+        contentPane.add(contentView, BorderLayout.CENTER);
         setSize(500, 375);
         setLocationRelativeTo(getOwner());
         // JFormDesigner - End of component initialization  //GEN-END:initComponents  @formatter:on
     }
 
     // JFormDesigner - Variables declaration - DO NOT MODIFY  //GEN-BEGIN:variables  @formatter:off
-    private JPanel dialogPane;
-    private JPanel contentPane;
+    private JPanel contentView;
+    private JPanel bookInfoView;
     private JLabel label1;
     private JTextField bookNameField;
     private JLabel label2;

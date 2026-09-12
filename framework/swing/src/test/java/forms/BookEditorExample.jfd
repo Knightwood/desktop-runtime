@@ -3,18 +3,18 @@ JFDML JFormDesigner: "8.2.4.0.393" Java: "21.0.8" encoding: "UTF-8"
 new FormModel {
 	contentType: "form/swing"
 	root: new FormRoot {
-		add( new FormWindow( "javax.swing.JFrame", new FormLayoutManager( class java.awt.BorderLayout ) ) {
+		add( new FormWindow( "androidx.jvm.swing.lifecycle.jFrame.ComponentJFrame", new FormLayoutManager( class java.awt.BorderLayout ) ) {
 			name: "this"
 			"$sizePolicy": 1
 			add( new FormContainer( "javax.swing.JPanel", new FormLayoutManager( class java.awt.BorderLayout ) ) {
-				name: "dialogPane"
+				name: "contentView"
 				"border": new javax.swing.border.EmptyBorder( 12, 12, 12, 12 )
 				add( new FormContainer( "javax.swing.JPanel", new FormLayoutManager( class com.intellij.uiDesigner.core.GridLayoutManager ) {
 					"$columnCount": 2
 					"$rowCount": 4
 					"sameSizeVertically": true
 				} ) {
-					name: "contentPane"
+					name: "bookInfoView"
 					add( new FormComponent( "javax.swing.JLabel" ) {
 						name: "label1"
 						"text": "标题"

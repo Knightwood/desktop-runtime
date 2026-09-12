@@ -142,17 +142,28 @@ open class ComponentJDialog : JDialog,
         override fun windowStateChanged(e: WindowEvent) {
             try {
                 val event = when (e.newState) {
+                    WindowEvent.WINDOW_OPENED -> Lifecycle.Event.ON_CREATE
+
                     WindowEvent.WINDOW_ICONIFIED,
-                    WindowEvent.WINDOW_DEACTIVATED -> Lifecycle.Event.ON_STOP
+                    WindowEvent.WINDOW_DEACTIVATED,
+                        -> Lifecycle.Event.ON_STOP
 
                     WindowEvent.WINDOW_DEICONIFIED,
-                    WindowEvent.WINDOW_ACTIVATED -> Lifecycle.Event.ON_START
+                    WindowEvent.WINDOW_ACTIVATED,
+                        -> Lifecycle.Event.ON_START
 
                     WindowEvent.WINDOW_LOST_FOCUS -> Lifecycle.Event.ON_PAUSE
                     WindowEvent.WINDOW_GAINED_FOCUS -> Lifecycle.Event.ON_RESUME
-                    WindowEvent.WINDOW_CLOSED -> Lifecycle.Event.ON_DESTROY
-                    else -> throw IllegalStateException("Unknown window state: ${e.newState}")
+
+                    WindowEvent.WINDOW_CLOSING,
+                    WindowEvent.WINDOW_CLOSED
+                        -> Lifecycle.Event.ON_DESTROY
+
+                    else -> {
+                        Lifecycle.Event.ON_RESUME
+                    }
                 }
+
                 syncLife(event)
                 when (event) {
                     Lifecycle.Event.ON_START -> onStart()
@@ -172,9 +183,9 @@ open class ComponentJDialog : JDialog,
     init {
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
 
-        addWindowStateListener(innerWindowAdapter)
-        addWindowListener(innerWindowAdapter)
-        addWindowFocusListener(innerWindowAdapter)
+        super.addWindowStateListener(innerWindowAdapter)
+        super.addWindowListener(innerWindowAdapter)
+        super.addWindowFocusListener(innerWindowAdapter)
 
         // 默认不直接关闭，走 finish() 自定义流程
         defaultCloseOperation = DO_NOTHING_ON_CLOSE

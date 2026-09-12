@@ -4,22 +4,14 @@ import androidx.compose.desktop.runtime.activity.Activity
 import androidx.compose.desktop.runtime.activity.ActivityManager
 import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.core.context.ContextImpl
-import androidx.compose.desktop.runtime.di.getServiceInstance
 import androidx.compose.desktop.runtime.window.ApplicationRootContent
 import androidx.compose.desktop.runtime.window.WindowManager
 import androidx.jvm.system.core.PathService
 import androidx.jvm.system.di.InstanceContext
-import androidx.jvm.system.di.startUp
 import com.github.knightwood.slf4j.kotlin.logFor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.koin.core.logger.Level
-import org.koin.core.logger.Level.ERROR
-import org.koin.core.logger.Level.INFO
-import org.koin.core.logger.Level.NONE
-import org.koin.core.logger.Level.WARNING
-import org.koin.core.logger.MESSAGE
 import kotlin.system.exitProcess
 
 /**

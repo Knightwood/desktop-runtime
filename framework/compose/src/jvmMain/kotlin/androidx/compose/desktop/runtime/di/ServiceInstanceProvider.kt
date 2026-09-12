@@ -22,10 +22,8 @@ class ServiceInstanceProvider : ModuleProvider {
 
     override fun provide(): org.koin.core.module.Module {
         return module {
-            single {
-                ActivityLauncher(it.get(),it.get())
-            }
             singleOf(::ActivityManager)
+            single { get<ActivityManager>().launcherManager }
             singleOf(::WindowManager)
             single(named<Application>()) {
                 CoroutineScope(Dispatchers.Default) + SupervisorJob() + CoroutineName("Application")
@@ -39,11 +37,4 @@ class ServiceInstanceProvider : ModuleProvider {
     companion object {
         const val TAG = "ServiceInstanceProvider"
     }
-}
-
-/**
- * 获取某个服务的实例
- */
-internal inline fun <reified T : Any> getServiceInstance(): T {
-    return InstanceContext.get().get<T>()
 }

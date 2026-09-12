@@ -92,6 +92,7 @@ open class ComponentJFrame : LifecycleJFrame,
     override fun onSaveInstanceState(outState: SavedState) {
         super.onSaveInstanceState(outState)
         savedStateRegistryController.performSave(outState)
+        logger.debug("onSaveInstanceState - $outState")
     }
 
     @CallSuper

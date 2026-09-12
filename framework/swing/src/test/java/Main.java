@@ -1,15 +1,14 @@
 import androidx.compose.desktop.runtime.core.ServiceBooter;
-import com.formdev.flatlaf.FlatLaf;
+import androidx.compose.desktop.runtime.savestate.ApplicationSaveStateSaver;
+import androidx.compose.desktop.runtime.savestate.Tokens;
+import androidx.jvm.swing.lifecycle.core.intent.Singularity;
 import com.formdev.flatlaf.FlatLightLaf;
-import com.sun.tools.javac.Main;
 import forms.MainScreen;
-import model.Book;
-import forms.BookEditorExample;
-import forms.SaveButtonListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import java.awt.*;
 
 /**
  * 如果遇到
@@ -23,16 +22,19 @@ import javax.swing.*;
  * 改成IntlliJ IDEA即可，其他改动都不需要。
  *
  */
-public class Mian {
-    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+public class Main {
+    private static final Logger logger = LoggerFactory.getLogger(com.sun.tools.javac.Main.class);
 
     public static void main(String[] args) {
         try {
+            logger.info("Starting Mian");
             FlatLightLaf.setup();
-            ServiceBooter.INSTANCE.bootstrap(logger);
+            Singularity.INSTANCE.boot();
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {
+                    ApplicationSaveStateSaver service = ServiceBooter.INSTANCE.getService(ApplicationSaveStateSaver.class);
                     MainScreen screen = new MainScreen();
+                    screen.setSavedState(service.obtain(Tokens.of("main-0")));
                     screen.setVisible(true);
                 }
             });

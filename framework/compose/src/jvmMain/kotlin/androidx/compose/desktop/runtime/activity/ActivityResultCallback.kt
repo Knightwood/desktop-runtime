@@ -1,17 +1,13 @@
 package androidx.compose.desktop.runtime.activity
 
-import androidx.core.bundle.Bundle
+import androidx.compose.desktop.runtime.core.intent.ComponentResult
+import androidx.compose.desktop.runtime.core.intent.ComponentResultCallback
 
 
-class ActivityResult(
-    val resultCode: Int,
-    val data: Bundle?
-)
+typealias ActivityResult = ComponentResult
 
 
 /**
  * activity的结果回调
  */
-fun interface ActivityResultCallback {
-    fun invoke(resultCode: Int, data: Bundle?)
-}
+typealias ActivityResultCallback = ComponentResultCallback

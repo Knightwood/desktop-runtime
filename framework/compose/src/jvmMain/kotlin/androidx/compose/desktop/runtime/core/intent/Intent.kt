@@ -1,7 +1,6 @@
 package androidx.compose.desktop.runtime.core.intent
 
 import androidx.compose.desktop.runtime.activity.Activity
-import androidx.compose.desktop.runtime.activity.Activity.Companion.DEFAULT_RESULT_FLOW
 import androidx.compose.desktop.runtime.activity.ActivityResult
 import androidx.compose.desktop.runtime.savestate.Token
 import androidx.core.bundle.Bundle
@@ -83,7 +82,7 @@ class LaunchActivityIntent : OperateIntent {
         return flow as MutableSharedFlow<T>
     }
 
-    val activityResultFlow get() = getMailBox<ActivityResult>(DEFAULT_RESULT_FLOW)
+    val activityResultFlow get() = getMailBox<ActivityResult>(Activity.DEFAULT_RESULT_FLOW)
     /**
      * 获取默认作为传递结果的信箱
      */
@@ -129,15 +128,4 @@ class LaunchActivityIntent : OperateIntent {
         this.launchMode = launchMode
     }
 }
-/**
- * 启动模式，默认为标准模式，即多个实例可以同时存在。
- */
-enum class LaunchMode {
-    SINGLE_INSTANCE,
-    STANDARD,
-    ;
 
-    operator fun plus(data: Any?): Pair<LaunchMode, Any?> {
-        return this to data
-    }
-}

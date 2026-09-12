@@ -3,26 +3,43 @@ JFDML JFormDesigner: "8.2.4.0.393" Java: "21.0.8" encoding: "UTF-8"
 new FormModel {
 	contentType: "form/swing"
 	root: new FormRoot {
-		add( new FormWindow( "javax.swing.JFrame", new FormLayoutManager( class java.awt.BorderLayout ) ) {
+		add( new FormWindow( "androidx.jvm.swing.lifecycle.jFrame.ComponentJFrame", new FormLayoutManager( class com.intellij.uiDesigner.core.GridLayoutManager ) {
+			"$columnCount": 1
+			"$rowCount": 2
+			"hGap": 0
+			"vGap": 0
+		} ) {
 			name: "this"
 			"$sizePolicy": 1
-			add( new FormContainer( "javax.swing.JPanel", new FormLayoutManager( class java.awt.FlowLayout ) ) {
-				name: "contentPane"
+			"title": "主窗口"
+			add( new FormContainer( "javax.swing.JScrollPane", new FormLayoutManager( class javax.swing.JScrollPane ) ) {
+				name: "scrollPane1"
+				add( new FormComponent( "javax.swing.JTextArea" ) {
+					name: "tv_bookInfo"
+				} )
+			}, new FormLayoutConstraints( class com.intellij.uiDesigner.core.GridConstraints ) {
+				"fill": 3
+			} )
+			add( new FormContainer( "javax.swing.JPanel", new FormLayoutManager( class javax.swing.BoxLayout ) ) {
+				name: "contentView"
 				add( new FormComponent( "javax.swing.JLabel" ) {
 					name: "label1"
 					"text": "书籍窗口"
-					"verticalAlignment": 1
+				} )
+				add( new FormComponent( "com.jformdesigner.designer.wrapper.HSpacer" ) {
+					name: "hSpacer1"
+					"minimumSize": new java.awt.Dimension( 16, 12 )
 				} )
 				add( new FormComponent( "javax.swing.JButton" ) {
 					name: "button1"
 					"text": "打开"
 				} )
-			}, new FormLayoutConstraints( class java.lang.String ) {
-				"value": "Center"
+			}, new FormLayoutConstraints( class com.intellij.uiDesigner.core.GridConstraints ) {
+				"row": 1
 			} )
 		}, new FormLayoutConstraints( null ) {
 			"location": new java.awt.Point( 120, 66 )
-			"size": new java.awt.Dimension( 260, 154 )
+			"size": new java.awt.Dimension( 375, 200 )
 		} )
 	}
 }

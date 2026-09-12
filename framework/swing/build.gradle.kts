@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm")
-//    alias(libs.plugins.ksp)
+    alias(libs.plugins.ksp)
     id("publish")
 }
 
@@ -40,6 +40,8 @@ dependencies {
 //    implementation(libs.androidx.lifecycle.viewmodel.savestate.desktop)
     implementation(libs.androidx.savestate)
 //    implementation(libs.androidx.savestate.desktop)
+    implementation(libs.core.bundle)
+    implementation(libs.kotlin.coroutines.swing)
 
     implementation(libs.okio)
     // SLF4J
@@ -55,8 +57,11 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.core)  // No version needed
 
+    implementation(project(":toolkit:spi"))
     implementation(project(":framework:common"))
 
+    implementation(libs.autoService.annoations)
+    ksp(libs.autoService.ksp)
     implementation(jvms.bundles.logging)
     implementation(jvms.github.swing.theme.flat)
     //添加jetbrains提供的swing布局管理器

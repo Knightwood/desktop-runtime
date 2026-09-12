@@ -61,9 +61,29 @@ object ServiceBooter {
     fun <T : Any> getService(cls: KClass<T>): T {
         return koin().get(cls)
     }
+
     fun <T : Any> getService(cls: Class<T>): T {
-        koinApplication()
         return koin().get(cls.kotlin)
     }
+}
 
+/**
+ * 获取某个服务的实例
+ * ```
+ * //公共：
+ * getServiceInstance<ApplicationSaveStateSaver>()
+ * getServiceInstance<IntentProcessor>()
+ *
+ * //compose:
+ * getServiceInstance<ActivityManager>()
+ * getServiceInstance<ActivityLauncher>()
+ * getServiceInstance<WindowManager>()
+ *
+ * //swing:
+ * getServiceInstance<JFrameManager>()
+ * getServiceInstance<JFrameLauncher>()
+ * ```
+ */
+inline fun <reified T : Any> getServiceInstance(): T {
+    return ServiceBooter.getService(T::class)
 }

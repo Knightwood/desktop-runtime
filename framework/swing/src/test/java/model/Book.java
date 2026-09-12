@@ -8,7 +8,7 @@ public class Book {
     private String name;
     private boolean isTaken;
 
-    public Book(Author author, Genre genre, Date publishedOn, String name) {
+    public Book(Author author, Genre genre, String name) {
         this.author = author;
         this.genre = genre;
         this.name = name;
@@ -16,7 +16,10 @@ public class Book {
     }
 
     public Book() {
-
+        this.author = new Author("", "");
+        this.genre = Genre.FICTION;
+        this.isTaken = false;
+        this.name = "";
     }
 
     public Author getAuthor() {
@@ -34,6 +37,7 @@ public class Book {
     public boolean isTaken() {
         return isTaken;
     }
+
     public void setTaken(boolean taken) {
         isTaken = taken;
     }
