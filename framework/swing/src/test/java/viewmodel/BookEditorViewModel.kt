@@ -28,7 +28,7 @@ class BookEditorViewModel(
     }
 
     fun parse(bundle: Bundle): Book {
-        val name = bundle.getString("Book Name")!!
+        val name = bundle.getString("Book Title")!!
         val author = bundle.getString("Author")!!
         val genre = bundle.getString("Genre")!!
         val isTaken = bundle.getBoolean("Is Unavailable", false)

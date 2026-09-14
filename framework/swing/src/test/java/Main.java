@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.awt.*;
 
 /**
  * 如果遇到
@@ -23,11 +22,12 @@ import java.awt.*;
  *
  */
 public class Main {
-    private static final Logger logger = LoggerFactory.getLogger(com.sun.tools.javac.Main.class);
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
         try {
             logger.info("Starting Mian");
+            System.setProperty("flatlaf.uiScale", "1.25");
             FlatLightLaf.setup();
             Singularity.INSTANCE.boot();
             SwingUtilities.invokeLater(new Runnable() {
@@ -36,6 +36,8 @@ public class Main {
                     MainScreen screen = new MainScreen();
                     screen.setSavedState(service.obtain(Tokens.of("main-0")));
                     screen.setVisible(true);
+//                    TestLifecycleFrame testLifecycleFrame = new TestLifecycleFrame();
+//                    testLifecycleFrame.setVisible(true);
                 }
             });
         } catch (Exception e) {

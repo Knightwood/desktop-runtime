@@ -16,6 +16,7 @@ import androidx.lifecycle.viewmodel.CreationExtras;
 import androidx.savedstate.SavedState;
 import com.intellij.uiDesigner.core.*;
 import model.*;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ public class BookEditorExample extends ComponentJFrame {
 
     public BookEditorExample() {
         setupUI();
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     }
 
     private void setupUI() {
@@ -113,9 +115,7 @@ public class BookEditorExample extends ComponentJFrame {
 
     private void cancelChanges() {
         // Reset fields
-        bookNameField.setText("");
-        genreComboBox.setSelectedIndex(0);
-        isTakenCheckBox.setSelected(false);
+        resetBookInfo(new Book());
     }
 
     private void populateGenreComboBox() {

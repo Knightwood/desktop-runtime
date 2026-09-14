@@ -25,6 +25,7 @@ public class MainScreen extends ComponentJFrame {
 
     public MainScreen() {
         setupUI();
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     }
 
     @Override

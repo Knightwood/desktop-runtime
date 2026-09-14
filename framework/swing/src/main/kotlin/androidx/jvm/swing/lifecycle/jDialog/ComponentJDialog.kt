@@ -2,7 +2,7 @@ package androidx.jvm.swing.lifecycle.jDialog
 
 import androidx.annotation.CallSuper
 import androidx.compose.desktop.runtime.viewmodel.MySavedStateViewModelFactory
-import androidx.jvm.swing.lifecycle.jFrame.WindowAdapter2
+import androidx.jvm.swing.lifecycle.core.intent.WindowLifecycleAdapter
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -127,68 +127,33 @@ open class ComponentJDialog : JDialog,
     // ---------------------------------------------------------------
     // 生命周期事件桥接
     // ---------------------------------------------------------------
-    @Transient
-    private val innerWindowAdapter = object : WindowAdapter2() {
-        override fun windowOpened(e: WindowEvent) {
-            onCreate(savedState)
-            super.windowOpened(e)
-        }
 
-        override fun windowClosing(e: WindowEvent) {
-            finish()
-            super.windowClosing(e)
-        }
+    private val lifecycleAdapter = WindowLifecycleAdapter(lifecycleRegistry)
 
-        override fun windowStateChanged(e: WindowEvent) {
-            try {
-                val event = when (e.newState) {
-                    WindowEvent.WINDOW_OPENED -> Lifecycle.Event.ON_CREATE
-
-                    WindowEvent.WINDOW_ICONIFIED,
-                    WindowEvent.WINDOW_DEACTIVATED,
-                        -> Lifecycle.Event.ON_STOP
-
-                    WindowEvent.WINDOW_DEICONIFIED,
-                    WindowEvent.WINDOW_ACTIVATED,
-                        -> Lifecycle.Event.ON_START
-
-                    WindowEvent.WINDOW_LOST_FOCUS -> Lifecycle.Event.ON_PAUSE
-                    WindowEvent.WINDOW_GAINED_FOCUS -> Lifecycle.Event.ON_RESUME
-
-                    WindowEvent.WINDOW_CLOSING,
-                    WindowEvent.WINDOW_CLOSED
-                        -> Lifecycle.Event.ON_DESTROY
-
-                    else -> {
-                        Lifecycle.Event.ON_RESUME
-                    }
-                }
-
-                syncLife(event)
+    init {
+        //监听生命周期事件并回调对应的生命周期方法
+        lifecycleRegistry.addObserver(object : LifecycleEventObserver {
+            override fun onStateChanged(
+                source: LifecycleOwner,
+                event: Lifecycle.Event,
+            ) {
                 when (event) {
+                    Lifecycle.Event.ON_CREATE -> onCreate(savedState)
                     Lifecycle.Event.ON_START -> onStart()
                     Lifecycle.Event.ON_RESUME -> onResume()
                     Lifecycle.Event.ON_PAUSE -> onPause()
                     Lifecycle.Event.ON_STOP -> onStop()
                     Lifecycle.Event.ON_DESTROY -> onDestroy()
-                    else -> {}
+                    else -> Unit
                 }
-            } catch (ex: Exception) {
-                logger.error("同步 Dialog 生命周期失败", ex)
             }
-            super.windowStateChanged(e)
-        }
-    }
-
-    init {
+        })
+        //初始化生命周期
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-
-        super.addWindowStateListener(innerWindowAdapter)
-        super.addWindowListener(innerWindowAdapter)
-        super.addWindowFocusListener(innerWindowAdapter)
-
-        // 默认不直接关闭，走 finish() 自定义流程
-        defaultCloseOperation = DO_NOTHING_ON_CLOSE
+        //添加窗口状态监听, 使WindowLifecycleAdapter将窗口状态转换成生命周期状态并派发给lifecycleRegistry
+        //这里已重写相关方法, 需要使用super添加状态监听
+        super.addWindowListener(lifecycleAdapter)
+        super.addWindowFocusListener(lifecycleAdapter)
 
         // DESTROY 时清理 ViewModelStore
         lifecycle.addObserver(object : LifecycleEventObserver {
@@ -211,28 +176,21 @@ open class ComponentJDialog : JDialog,
     // ---------------------------------------------------------------
     // 覆写监听器添加方法，统一路由到 innerWindowAdapter
     // ---------------------------------------------------------------
-    override fun addWindowStateListener(listener: WindowStateListener) {
-        innerWindowAdapter.windowStateListener = listener
-    }
-
-    override fun removeWindowStateListener(listener: WindowStateListener) {
-        innerWindowAdapter.windowStateListener = null
-    }
 
     override fun addWindowFocusListener(listener: WindowFocusListener) {
-        innerWindowAdapter.windowFocusListener = listener
+        this.lifecycleAdapter.windowFocusListener = listener
     }
 
     override fun removeWindowFocusListener(listener: WindowFocusListener) {
-        innerWindowAdapter.windowFocusListener = null
+        this.lifecycleAdapter.windowFocusListener = null
     }
 
     override fun addWindowListener(listener: WindowListener) {
-        innerWindowAdapter.windowListener = listener
+        this.lifecycleAdapter.windowListener = listener
     }
 
     override fun removeWindowListener(listener: WindowListener) {
-        innerWindowAdapter.windowListener = null
+        this.lifecycleAdapter.windowListener = null
     }
 
     // ---------------------------------------------------------------

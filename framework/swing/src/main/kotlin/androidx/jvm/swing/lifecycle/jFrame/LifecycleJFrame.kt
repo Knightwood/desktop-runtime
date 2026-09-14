@@ -7,37 +7,47 @@ import androidx.compose.desktop.runtime.savestate.Token
 import androidx.compose.desktop.runtime.utils.WeakReferenceDelegate
 import androidx.core.bundle.Bundle
 import androidx.jvm.swing.lifecycle.core.intent.LaunchJFrameIntent
+import androidx.jvm.swing.lifecycle.core.intent.WindowLifecycleAdapter
 import androidx.jvm.system.di.InstanceKoinComponent
 import androidx.jvm.system.di.inject
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import com.github.knightwood.slf4j.kotlin.logFor
 import java.awt.GraphicsConfiguration
-import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 import java.awt.event.WindowListener
 import java.awt.event.WindowStateListener
 import javax.swing.JFrame
 
 /**
- *
+ * https://pingfangx.github.io/java-tutorials/uiswing/events/windowlistener.html
  * 生成并显示一个JFrame有两种方式
  *
- * 方式1:
+ * 方式1直接设置isVisible = true,即可显示窗口,
+ * 此方式不具备获取启动参数、设置结果、自动获取SaveStated等
  * ```
  * val jFrame = BookEditorExample()
  * jFrame.isVisible = true
  * ```
  *
- * 方式2:
+ * 方式2使用Intent启动, 被启动的JFrame将持有启动者提供的Intent作为沟通桥梁,
+ * 使用Intent获取传递的启动参数, 通过Intent回传结果, 自动从ApplicationSaveStateSaver获取SaveStated等
  * ```
  * LaunchJFrameIntent intent = new LaunchJFrameIntent(this,BookEditorExample.class, LaunchMode.STANDARD);
  * JFrameManager.openJFrame(intent);
  * ```
  *
+ * 注意:
+ * JFrame默认关闭操作为HIDE_ON_CLOSE, 这意味着关闭窗口将不会触发OnDestroy事件
+ * 需要将默认关闭操作设置为
+ * setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+ *
+ *
+ * ---
  * WindowStateListener与 WindowListener
  * 事件分发源码:
 ```
@@ -152,60 +162,32 @@ open class LifecycleJFrame : JFrame, LifecycleOwner,
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
 
-    @Transient
-    private val innerWindowAdapter = object : WindowAdapter2() {
-
-        override fun windowIconified(e: WindowEvent) {
-            syncLifecycleByState(WindowEvent.WINDOW_ICONIFIED)
-            super.windowIconified(e)
-        }
-
-        override fun windowDeiconified(e: WindowEvent) {
-            syncLifecycleByState(WindowEvent.WINDOW_DEICONIFIED)
-            super.windowDeiconified(e)
-        }
-
-        override fun windowActivated(e: WindowEvent) {
-            syncLifecycleByState(WindowEvent.WINDOW_ACTIVATED)
-            super.windowActivated(e)
-        }
-
-        override fun windowLostFocus(e: WindowEvent) {
-            syncLifecycleByState(WindowEvent.WINDOW_LOST_FOCUS)
-            super.windowLostFocus(e)
-        }
-
-        override fun windowGainedFocus(e: WindowEvent) {
-            syncLifecycleByState(WindowEvent.WINDOW_GAINED_FOCUS)
-            super.windowGainedFocus(e)
-        }
-
-        override fun windowClosing(e: WindowEvent) {
-            finish()
-            super.windowClosing(e)
-        }
-    }
+    private val lifecycleAdapter = WindowLifecycleAdapter(lifecycleRegistry)
 
     init {
-        super.addWindowStateListener(innerWindowAdapter)
-        //默认关闭窗口行为指定为什么都不做，然后监听窗口关闭操作，在窗口关闭时使用自定义的关闭流程
-//        defaultCloseOperation = JFrame.DO_NOTHING_ON_CLOSE
-        /*
-         * 监听窗口事件
-         */
-        super.addWindowListener(innerWindowAdapter)
-        super.addWindowFocusListener(innerWindowAdapter)
+        //监听生命周期事件并回调对应的生命周期方法
+        lifecycleRegistry.addObserver(object : LifecycleEventObserver {
+            override fun onStateChanged(
+                source: LifecycleOwner,
+                event: Lifecycle.Event,
+            ) {
+                when (event) {
+                    Lifecycle.Event.ON_CREATE -> onCreate(savedState)
+                    Lifecycle.Event.ON_START -> onStart()
+                    Lifecycle.Event.ON_RESUME -> onResume()
+                    Lifecycle.Event.ON_PAUSE -> onPause()
+                    Lifecycle.Event.ON_STOP -> onStop()
+                    Lifecycle.Event.ON_DESTROY -> onDestroy()
+                    else -> Unit
+                }
+            }
+        })
+        //初始化生命周期
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
-    }
-
-    override fun setVisible(b: Boolean) {
-        super.setVisible(b)
-        if (b) {
-            // onCreate方法要尽可能发生的更早, 我决定让他在窗口打开前回调
-            // 打开窗口时 先是windowActivated-> windowGainedFocus -> windowOpened
-            // 前两个事件会多次调用，windowOpened会调用一次但时机太晚，不能在windowOpened中调用
-            onCreate(savedState)
-        }
+        //添加窗口状态监听, 使WindowLifecycleAdapter将窗口状态转换成生命周期状态并派发给lifecycleRegistry
+        //这里已重写相关方法, 需要使用super添加状态监听
+        super.addWindowListener(lifecycleAdapter)
+        super.addWindowFocusListener(lifecycleAdapter)
     }
 
     /**
@@ -231,89 +213,36 @@ open class LifecycleJFrame : JFrame, LifecycleOwner,
     }
 
     //</editor-fold>
-    /**
-     * 将窗口事件翻译成对应的生命周期事件
-     */
-    private fun syncLifecycleByState(state: Int) {
-        try {
-            val lifecycleEvent = when (state) {
-                WindowEvent.WINDOW_OPENED -> Lifecycle.Event.ON_CREATE
 
-                WindowEvent.WINDOW_ICONIFIED,
-                WindowEvent.WINDOW_DEACTIVATED,
-                    -> Lifecycle.Event.ON_STOP
-
-                WindowEvent.WINDOW_DEICONIFIED,
-                WindowEvent.WINDOW_ACTIVATED,
-                    -> Lifecycle.Event.ON_START
-
-                WindowEvent.WINDOW_LOST_FOCUS -> Lifecycle.Event.ON_PAUSE
-                WindowEvent.WINDOW_GAINED_FOCUS -> Lifecycle.Event.ON_RESUME
-
-                WindowEvent.WINDOW_CLOSING,
-                WindowEvent.WINDOW_CLOSED,
-                    -> Lifecycle.Event.ON_DESTROY
-
-                else -> {
-                    Lifecycle.Event.ON_ANY
-                }
-            }
-            logger.debug("syncLife life:{}", lifecycleEvent)
-            syncLife(lifecycleEvent)
-            when (lifecycleEvent) {
-                Lifecycle.Event.ON_RESUME -> onResume()
-                Lifecycle.Event.ON_PAUSE -> onPause()
-                Lifecycle.Event.ON_STOP -> onStop()
-                Lifecycle.Event.ON_DESTROY -> onDestroy()
-                Lifecycle.Event.ON_START -> onStart()
-                // on_create事件不需要同步
-                else -> {}
-            }
-        } catch (e: Exception) {
-            logger.error("同步生命周期失败", e)
-        }
-    }
-
-    /**
-     * 观察Window的生命周期，并同步给activity的[lifecycleRegistry]
-     * 但是，不能同步[ON_DESTROY]状态，因为activity的生命周期理应比window更长。
-     *
-     * @param event 需要同步的生命周期事件
-     */
-    private fun syncLife(event: Lifecycle.Event) {
-        lifecycleRegistry.currentState = event.targetState
-        lifecycleRegistry.handleLifecycleEvent(event)
-    }
 
     //<editor-fold desc="重写父级方法">
-    override fun addWindowStateListener(listener: WindowStateListener) {
-        this.innerWindowAdapter.windowStateListener = listener
-    }
-
-    override fun removeWindowStateListener(listener: WindowStateListener) {
-        this.innerWindowAdapter.windowStateListener = null
-    }
+    /*
+    addWindowFocusListener、addWindowListener、addWindowStateListener
+    等方法添加监听器会替换掉上一次添加的监听器, 由于我们已经将WindowLifecycleAdapter
+    添加为相关的监听器, 如果再次向当前窗口添加监听器, 会破坏我们的窗口状态转生命周期状态功能,
+    所以, 我们需要将相关的监听器添加到WindowLifecycleAdapter, 让WindowLifecycleAdapter转发窗口状态
+    */
 
     override fun addWindowFocusListener(listener: WindowFocusListener) {
-        this.innerWindowAdapter.windowFocusListener = listener
+        this.lifecycleAdapter.windowFocusListener = listener
     }
 
     override fun removeWindowFocusListener(listener: WindowFocusListener) {
-        this.innerWindowAdapter.windowFocusListener = null
+        this.lifecycleAdapter.windowFocusListener = null
     }
 
     override fun addWindowListener(listener: WindowListener) {
-        this.innerWindowAdapter.windowListener = listener
+        this.lifecycleAdapter.windowListener = listener
     }
 
     override fun removeWindowListener(listener: WindowListener) {
-        this.innerWindowAdapter.windowListener = null
+        this.lifecycleAdapter.windowListener = null
     }
     //</editor-fold>
 
     @CallSuper
     open fun onCreate(savedInstanceState: SavedState?) {
-        this.syncLife(Lifecycle.Event.ON_CREATE)
+
     }
 
     @CallSuper
