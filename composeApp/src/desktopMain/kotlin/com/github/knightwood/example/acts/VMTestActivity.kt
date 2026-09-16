@@ -88,7 +88,7 @@ class VMTestActivity : ComponentActivity() {
         setContent {
             //由于状态存储发生在onDestroy阶段，closeActivity为true时才会触发onDestroy
             Window(onCloseRequest = { finish() }) {
-                LinkComposeWindow {
+                LinkWindow {
                     MaterialTheme {
                         Column {
                             val vm1_value = vm1.value.collectAsState()

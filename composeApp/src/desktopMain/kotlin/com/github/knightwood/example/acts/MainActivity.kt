@@ -1,6 +1,7 @@
 package com.github.knightwood.example.acts
 
 import androidx.compose.desktop.runtime.activity.Activity
+import androidx.compose.desktop.runtime.activity.IActivityLauncher
 import androidx.compose.material3.Text
 import androidx.compose.desktop.runtime.core.intent.Intent
 import androidx.compose.desktop.runtime.core.intent.LaunchActivityIntent
@@ -13,13 +14,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
 import androidx.jvm.system.core.AppPathProvider
 import androidx.jvm.system.core.keepDirExist
 import androidx.jvm.system.process.ProcessLocker
@@ -27,6 +31,7 @@ import androidx.jvm.system.ui.tray.TrayConf
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.savedstate.SavedState
 import com.github.knightwood.example.components.TextSwitch
 import com.github.knightwood.example.components.render.RenderApiSelector
@@ -40,9 +45,7 @@ import kotlin.random.Random
 
 
 open class MainActivity : Activity() {
-    val randoms = Random.nextInt(0, 11)
     private val logger = logFor("MainActivity")
-    private val scope = CoroutineScope(Dispatchers.Default) + SupervisorJob()
 //
 //    init {
 //        lifecycleListener = object : LifecycleEventObserver {
@@ -64,7 +67,7 @@ open class MainActivity : Activity() {
                 onCloseRequest = { hide() },
                 visible = mVisibility,
             ) {
-                LinkComposeWindow {
+                LinkWindow {
                     val settings = RenderSettingsProvider.flow.collectAsState(initial = RenderSettingsProvider.defaultValue())
                     MaterialTheme {
                         Column {
@@ -95,7 +98,7 @@ open class MainActivity : Activity() {
                                         putInt("random", Random.nextInt(12, 20))
                                     }
                                 }
-                                scope.launch {
+                                lifecycleScope.launch {
                                     startActivityForResult(intent) { result, data ->
                                         vmActivityResult = data.toString()
                                         logger.info("data: $data")
@@ -121,7 +124,7 @@ open class MainActivity : Activity() {
                             ) {
 
                                 Button(onClick = {
-                                    scope.launch {
+                                    lifecycleScope.launch {
                                         throw RuntimeException("测试异常")
                                     }
                                 }) {
@@ -145,7 +148,7 @@ open class MainActivity : Activity() {
                                     RenderApiSelector(
                                         selected = settings.value.skikoRenderApi,
                                         onChanged = {
-                                            scope.launch {
+                                            lifecycleScope.launch {
                                                 RenderSettingsProvider.update(
                                                     settings.value.copy(skikoRenderApi = it)
                                                 )

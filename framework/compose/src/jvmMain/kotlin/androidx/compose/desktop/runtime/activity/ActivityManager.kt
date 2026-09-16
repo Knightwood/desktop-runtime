@@ -21,15 +21,12 @@ import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
 
 /**
- * 管理所有的activity
+ * 管理所有的activity，提供启动activity功能
  */
 class ActivityManager : InstanceKoinComponent {
     val scope by inject<CoroutineScope>(named<ActivityManager>())
 
-    // activity map
     private val activityMap: MutableMap<Token, Activity> = mutableMapOf()
-
-    //任务栈
     internal val stack = mutableListOf<Activity>()
     val activityStack: List<Activity> get() = stack
 

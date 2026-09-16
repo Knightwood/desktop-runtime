@@ -8,6 +8,17 @@ import androidx.compose.ui.window.DialogWindowScope
 import androidx.compose.ui.window.FrameWindowScope
 
 /**
+ * Activity根视图、ComponentDialog根视图。
+ *
+ * 所谓根视图：内部调用了Window、DialogWindow的普通Compose函数
+ * ```
+ * typealias ComposeContent = @Composable () -> Unit
+ *
+ * val rootView : ComposeContent = {
+ *     Window(onCloseRequest = {})
+ * }
+ * ```
+ *
  * @property Scope 作用域, [ApplicationScope]、[FrameWindowScope]、[DialogWindowScope] 等
  * @property rootContent 记录某组件的根布局
  * @property isAttached 若已经attach到Scope并且进入了重组作用域, 为true
@@ -29,7 +40,7 @@ class RootViewEntity<Scope> {
 }
 
 /**
- * 管理根视图[RootViewEntity]
+ * 管理[RootViewEntity]
  * @param Scope 视图发生的作用域, 可以指定为Unit不提供任何作用域.
  */
 class RootViewMgr<Scope> {

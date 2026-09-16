@@ -24,7 +24,8 @@ import kotlin.system.exitProcess
 private val logger = logFor("Application")
 
 /**
- * 作用类似于android中的application
+ * 作用类似于android中的application，
+ * 提供一个全局初始化功能，提供context
  */
 open class Application : ContextWrapper(), LifecycleOwner, InstanceKoinComponent {
     private val mutex = Mutex()
@@ -117,10 +118,10 @@ open class Application : ContextWrapper(), LifecycleOwner, InstanceKoinComponent
                 // FIXME: 不知道为什么有时候他的生命周期状态会退回到`INITIALIZED`，但这不妨碍我们结束应用
                 lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
                 lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-                onDestroy()
                 activityManager().release()
                 val windowMgr = windowManager()
                 windowMgr.release()
+                onDestroy() // 要在所有窗口释放后回调，避免在onDestroy中导出SavedState时还有窗口没结束导致没有状态存入Saver
                 windowMgr.exitApplication()
             } catch (e: Exception) {
                 logger.error(throwable = e) { "Current lifecycle state: ${lifecycleRegistry.currentState}" }

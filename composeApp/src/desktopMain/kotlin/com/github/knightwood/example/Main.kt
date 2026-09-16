@@ -1,6 +1,7 @@
 package com.github.knightwood.example
 
 import androidx.compose.desktop.runtime.activity.Activity
+import androidx.compose.desktop.runtime.core.intent.LaunchMode
 import androidx.compose.desktop.runtime.core.startApplication
 import androidx.compose.desktop.runtime.utils.UncaughtExceptionContent
 import androidx.compose.desktop.runtime.utils.setUncaughtExceptionHandler
@@ -35,11 +36,17 @@ fun main() {
     startApplication<SplashActivity, MainApplication>(
         applicationContent = object : ApplicationRootContent {
             @Composable
-            override fun ApplicationScope.invoke(content: ComposableContent) {
+            override fun ApplicationScope.invoke(windows: ComposableContent) {
                 UncaughtExceptionContent {
-                    content()
+                    windows()
                     SystemTray()
                 }
+            }
+        },
+        intentBuilder = {
+            launchMode = LaunchMode.STANDARD
+            data {
+                putInt("targetId", 1)
             }
         }
     )
@@ -50,7 +57,8 @@ fun ApplicationScope.SystemTray() {
     val painter = painterResource("icons/app_icon.svg")
     val icon1 = rememberVectorPainter(Icons.Default.Settings)
     val icon2 = rememberVectorPainter(Icons.Default.ExitToApp)
-    FixedSystemTray(icon = painter, tooltip = "hello",
+    FixedSystemTray(
+        icon = painter, tooltip = "hello",
         onLeftClick = {
             mainActivity?.run {
                 show()

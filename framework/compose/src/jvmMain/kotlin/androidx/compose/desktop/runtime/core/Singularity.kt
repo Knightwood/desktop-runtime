@@ -16,6 +16,7 @@ import kotlin.system.exitProcess
 
 /**
  * 一切的起源
+ * 通过[Singularity.boot] 方法启动框架
  */
 object Singularity {
     private val logger = logFor("Singularity")
@@ -31,10 +32,8 @@ object Singularity {
      * 一切的开端；一切的终结；
      *
      * @param awares 如果不想在application的onCreate函数中写太多逻辑，可以放到这里的初始化块
-     * @param applicationContent 手动控制applicationScope内容显示
+     * @param applicationContent 自定义applicationScope内容显示
      * @param intentBuilder 启动主界面的参数
-     * @param mainActivity 主界面
-     * @param applicationClass 应用程序类，默认为Application
      */
     inline fun <reified T : Activity, reified R : Application> boot(
         awares: Array<Aware> = arrayOf(),
@@ -56,7 +55,7 @@ object Singularity {
      * @param mainActivity 主界面
      * @param applicationClass 应用程序类，默认为Application
      * @param awares 如果不想再application的onCreate函数中写太多逻辑，可以放到这里的初始化块
-     * @param applicationContent 手动控制applicationScope内容显示
+     * @param applicationContent 自定义applicationScope内容显示
      * @param intentBuilder 启动主界面的参数
      */
     fun boot(
@@ -78,7 +77,7 @@ object Singularity {
                 get<ActivityManager>().prepare()
                 get<WindowManager>().also { windowManager ->
                     //将传入compose函数作为ApplicationScope根视图
-                    windowManager.applicationRootContent = applicationContent
+                    windowManager.userInsteadApplicationRootContent = applicationContent
                 }
             }
             // 创建Application实例
@@ -130,10 +129,8 @@ object Singularity {
  * 一切的开端；一切的终结；
  *
  * @param awares 如果不想在application的onCreate函数中写太多逻辑，可以放到这里的初始化块
- * @param applicationContent 手动控制applicationScope内容显示
+ * @param applicationContent 自定义applicationScope内容显示
  * @param intentBuilder 启动主界面的参数
- * @param mainActivity 主界面
- * @param applicationClass 应用程序类，默认为Application
  */
 inline fun <reified T : Activity, reified R : Application> startApplication(
     awares: Array<Aware> = arrayOf(),
@@ -147,7 +144,7 @@ inline fun <reified T : Activity, reified R : Application> startApplication(
  * @param mainActivity 主界面
  * @param applicationClass 应用程序类，默认为Application
  * @param awares 如果不想在application的onCreate函数中写太多逻辑，可以放到这里的初始化块
- * @param applicationContent 手动控制applicationScope内容显示
+ * @param applicationContent 自定义applicationScope内容显示
  * @param intentBuilder 启动主界面的参数
  */
 fun startApplication(

@@ -9,7 +9,6 @@ import org.koin.core.logger.Level.INFO
 import org.koin.core.logger.Level.NONE
 import org.koin.core.logger.Level.WARNING
 import org.koin.core.logger.MESSAGE
-import org.koin.dsl.koinApplication
 import org.slf4j.Logger
 import kotlin.reflect.KClass
 
@@ -42,7 +41,7 @@ object ServiceBooter {
     /**
      * 获取内部koin实例
      */
-    fun koin() = InstanceContext.get()
+    fun getKoin() = InstanceContext.get()
 
     /**
      * 获取一个已注册到koin的框架服务实例
@@ -59,11 +58,11 @@ object ServiceBooter {
      * ```
      */
     fun <T : Any> getService(cls: KClass<T>): T {
-        return koin().get(cls)
+        return getKoin().get(cls)
     }
 
     fun <T : Any> getService(cls: Class<T>): T {
-        return koin().get(cls.kotlin)
+        return getKoin().get(cls.kotlin)
     }
 }
 

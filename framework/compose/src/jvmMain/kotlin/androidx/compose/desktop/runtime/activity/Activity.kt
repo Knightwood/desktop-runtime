@@ -40,123 +40,161 @@ import androidx.savedstate.SavedState
 import androidx.savedstate.SavedStateRegistry
 import org.slf4j.LoggerFactory
 import kotlin.concurrent.thread
+import androidx.compose.ui.window.Window
 
 /**
- * androidx lifecycle 2.9.0-alpha06 Lifecycle.DESTROYED 状态是最终状态，现在，如果尝试将
- * Lifecycle 从该状态移至任何其他状态，都会导致 IllegalStateException。
+ * Activity 是 Compose Desktop 中的窗口容器，负责：
+ * 1. 承载 Compose 窗口内容并链接 [ComposeWindow] 的生命周期
+ * 2. 通过 [Intent] 接收启动参数、回传结果
+ * 3. 结合 [ApplicationSaveStateSaver] 实现状态保存与恢复
  *
- * 当隐藏window，生命周期会走到[ON_PAUSE]
- * 当window被移除（调用[finish]方法、手动点击窗口关闭按钮），window生命周期会走到[ON_DESTROY]，
- * 我们本就实现了隐藏与显示方法，根本不需要activity在关闭windows后重新生成window来显示界面，重走生命周期，
- * 而且当前生命走到[ON_DESTROY]时是无法设置其他生命周期状态的，因此，activity理应同步window生命周期
+ * ## 生命周期
  *
- * 如下是jb对于window的生命周期描述。
+ * Activity 自身不产生生命周期事件，而是**同步 [ComposeWindow] 的生命周期**：
  *
  * | Swing listener callbacks     | Lifecycle event | Lifecycle state change |
  * |------------------------------|-----------------|------------------------|
- * | windowIconified(最小化)         | ON_STOP         | STARTED → CREATED      |
- * | windowDeiconified(还原)        | ON_START        | CREATED → STARTED      |
- * | windowLostFocus(失去焦点、隐藏)     | ON_PAUSE        | RESUMED → STARTED      |
+ * | windowIconified(最小化)              | ON_STOP         | STARTED → CREATED      |
+ * | windowDeiconified(还原)             | ON_START        | CREATED → STARTED      |
+ * | windowLostFocus(失去焦点、隐藏)       | ON_PAUSE        | RESUMED → STARTED      |
  * | windowGainedFocus(获得焦点、恢复显示) | ON_RESUME       | STARTED → RESUMED      |
- * | dispose(移除window)            | ON_DESTROY      | CREATED → DESTROYED    |
+ * | dispose(移除window)                 | ON_DESTROY      | CREATED → DESTROYED    |
  *
- * activity的生命周期并不完全与window同步.
+ * 注意：自 androidx.lifecycle 2.9.0-alpha06 起，[Lifecycle.DESTROYED] 为终态，
+ * 任何从该状态向其他状态的迁移都会抛出 [IllegalStateException]。
  *
- * [Activity.finish] - 关闭窗口，不可恢复，标志着生命周期走到[ON_DESTROY] [Activity.hide] -
- * 隐藏窗口，可以恢复，标记生命周期走到[ON_PAUSE]
- *
- * compose resource目前可以使用多国语言，但是它不给你动态修改的功能，相关类和方法都是internal的。
- * 但是，它的功能实现实际上依赖于Java.Locale，因此我们可以通过在compose刷新之前修改Java.Locale，
- * 从而半支持多国语言的动态切换（这需要触发整个页面compose的重绘）。
- *
- * 首先，修改java默认locale，然后关闭窗口，此时compose进入onStop状态，
- * 重新打开窗口，compose重加载，重新读取了Java.Locale，从而语言得到了修改。
- *
- *
- * 通常我们会这么使用Window
+ * 实现一个窗口显示需在`application {}`中调用[Window]
  * ```
  * application {
- *     var windowClosed by remember { mutableStateOf(false) }
- *     var mVisible by remember { mutableStateOf(true) }
- *     if (!windowClosed) {
- *         Window(
- *             onCloseRequest = { windowClosed = true },
- *             isVisible = mVisible,
- *         ) {
- *              //界面
- *         }
- *     }
- * }
- * ```
- * 当windowClosed为false时, Window会挂载到重组树,内部创建ComposeWindow, 并将显示为窗口,并显示Compose界面
- * 当关闭窗口时,会触发onCloseRequest回调, 你需要将windowClosed置为true, 这样Window会从重组树上卸载,不再显示窗口
- *
- *  原理:
- * Window函数会创建ComposeWindow,让其显示Compose视图
- * ComposeWindow 继承自JFrame, 内部会添加一个能渲染Compose视图的JPanel,
- * 这个JPanel会给JFrame添加状态监听,并将其转换为生命周期,使用LocalLifecycle提供给要显示的compose视图
- * 因此, ComposeWindow生命周期会一半跟随compose视图状态, 窗口显示时生命周期走到ON_CREATE并显示compose视图,
- * compose视图不再显示时触发onDispose,窗口取消显示,生命周期走到ON_DESTROY
- * 显示JFrame时需要将JFrame.isVisible 赋值为true; 不再显示JFrame时需要将JFrame.isVisible 赋值为false,
- *
- * Window中的伪代码如下:
- * ```
- *
- * fun Window(content: @Composable ()->Unit ) {
- *     val window = remember{
- *         ComposeWindow(content).apply{ //一开始就创建JFrame并加载compse视图, 生命周期走到ON_CREATE
- *             isVisible = true
- *         }
- *     }
- *     DisposableEffect(){
- *         onDispose {//compose视图不再显示, 取消显示JFrame, 此时生命周期走到ON_DESTROY
- *             window.isVisible = false
- *         }
- *     }
- * }
- *
- * class ComposeWindow(val content: @Composable ()->Unit) :JFrame{
- *     init{
- *         addPanel(ComposePanel(content,this))
- *     }
- * }
- *
- *
- * class ComposePanel(val content: @Composable ()->Unit, val jFrame:JFrame): JPanel{
- *     init{
- *         jFrame.addStateListener{ state ->
- *             syncLifecycle(state.toLifecycleEvent())
- *         }
- *         ...经过一些复杂处理,显示compose内容, 当然这里只是伪代码, 实际情况不会在这里调用content
- *         LocalLifecycle.Provide(...){
- *             content()
- *         }
- *     }
- *     fun syncLifecycle(state:Lifecycle.Event){
- *         //将生命周期设置到LocalLifecycle
+ *     var windowVisible by remember { mutableStateOf(true) }
+ *     if (windowVisible) {
+ *         Window(onCloseRequest = { windowVisible = false })
  *     }
  * }
  * ```
  *
- * 因此,
- * 1. 当windowClosed为false时调用了Window函数, 内部创建JFrame显示窗口, 显示compose视图.
- * 2. 当点击窗口的关闭按钮, 回调Window的onCloseRequest, 将windowClosed置为true,
- *   Window从重组树上卸载, 触发DisposableEffect,将JFrame的isVisible置为false, JFrame不再显示, 且ComposeWindow生命周期走到ON_DESTROY
+ * Window函数被调用，内部会创建[androidx.compose.ui.awt.SwingWindow]并显示compose内容，SwingWindow的生命周期开始。
+ * Window函数不再被调用，从重组树上移除，Window内部触发DisposeEffect，SwingWindow销毁，compose内容不再显示，生命周期结束。
+ * 窗口的显示和关闭依靠Window函数从重组树上加载和移除，这也是为什么Window函数提供onCloseRequest参数。
+ * 在框架的窗口管理实现中，显示和关闭窗口也依赖此原理。 查看[finish]
  *
+ * ## 启动与结果回传
  *
- * 在具体实现窗口管理中, 点击关闭按钮触发Window的onCloseRequest, 此时需要将视图内容从ApplicationScope中卸载,
- * 不点击关闭按钮,从程序逻辑中关闭窗口,其实也是将视图内容从ApplicationScope中卸载, 流程是一致的.
- * 也就是直接调用finish即可.
- * 其实总结起来也会发现,窗口关闭的整个过程是先将Window从重组树上移除, 然后ComposeWindow才会触发ON_DESTROY的生命周期事件,
- * 而不是先触发ComposeWindow的ON_DESTROY的生命周期事件,再将Window从重组树上移除.
+ * 启动 Activity 的方式：
+ * 1. 通过 [Context] 的 `startActivity` / `startActivityForResult`
+ * 2. 通过 `IActivityLauncher` 或 `IntentProcessor` 服务
+ * 3. 通过 `ActivityManager`
+ *
+ * 结果回传既可使用 `startActivityForResult` 的回调（其内部是对[Intent.activityResultFlow] 的封装），也可直接订阅该 Flow。
+ * 若需自定义通道，可使用 [Intent.getMailBox]
+ *
+ * ## 用法
+ * * 示例Activity
+ * ```
+ * class ExampleActivity : Activity() {
+ *     override fun onCreate(savedInstanceState: SavedState?) {
+ *         super.onCreate(savedInstanceState)
+ *         setContent {
+ *             Window(onCloseRequest = { hide() }, visible = mVisibility) {
+ *                 LinkWindow { MaterialTheme { /* content */ } }
+ *             }
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * * 启动activity并获取结果
+ *
+ * 示例：
+ * 1. 在MainActivity中启动详情页面并获取结果
+ * ```
+ * val intent = Intent(this@MainActivity,DetailActivity::class.java).apply {
+ *     multiApplication = true
+ *     token = Token("detail-1")
+ *     data {
+ *         putInt("param1", 1024)
+ *         putString("param2", "str")
+ *     }
+ * }
+ * scope.launch {
+ *     startActivityForResult(intent) { result, data ->
+ *         vmActivityResult = data.toString()
+ *         logger.info("data: $data")
+ *     }
+ * }
+ * ```
+ * 2. 在详情页面设置结果并关闭页面
+ * ```
+ * //获取启动参数
+ * val params1 = intent?.getData<Int>("param1")
+ * 或者
+ * val params1 = intent?.mData.get<Int>("param1")
+ *
+ * //设置结果并关闭
+ * setResult(Activity.SUCCESS, bundleOf("result" to value))
+ * finish()
+ * ```
+ *
+ * * 启动activity除了使用context中的方法，还可以：
+ * 1. 使用ActivityManager [ActivityManager.startActivity]
+ * 2. 获取ActivityLauncher 启动activity
+ *  ```
+ *  在context中
+ *  getService<IActivityLauncher>(IActivityLauncher::class).start(intent)
+ *  在任意地方
+ *  ServiceBooter.getService<IActivityLauncher>(IActivityLauncher::class).start(intent)
+ *  ```
+ * 3. 获取IntentProcessor 启动activity
+ *  ```
+ *  在context中
+ *  getService<IntentProcessor>(IntentProcessor::class).start(intent)
+ *  在任意地方
+ *  ServiceBooter.getService<IntentProcessor>(IntentProcessor::class).start(intent)
+ *  ```
+ *
+ * * 除了上面使用startActivityForResult，通过回调接口获取结果外，还可以从intent中的activityResultFlow中collect结果
+ *
+ * 实际上，startActivityForResult方法回调接口就是封装自intent中的activityResultFlow
+ *
+ * ```
+ * intent.activityResultFlow.collect { result ->
+ *
+ * }
+ * ```
+ *
+ * 除了使用预定义的activityResultFlow，还可以设定自定义的信箱用于两个activity之间的数据传递
+ * ```
+ * activity1 启动 activity2,获取一个MutableSharedFlow观察activity2回传的结果
+ * intent.getMailBox<Int>("id").collect {
+ *      //.....
+ * }
+ *
+ * activity2处理完成后使用MutableSharedFlow回传结果
+ * intent?.getMailBox<Int>("id").emit(10)
+ * ```
+ *
+ * @see Intent
+ * @see ApplicationSaveStateSaver
+ * @see LinkWindow
+ * @see ActivityManager
  */
 abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent {
     private val logger = LoggerFactory.getLogger(this.toString())
 
     /**
-     * 子类可以指定此实例用于监听Window的生命周期变化
+     * 可选的生命周期监听器，由子类设置，用于监听 Window 的生命周期变化。
+     * 为 null 时表示子类不关心窗口生命周期。
      */
     protected var lifecycleListener: LifecycleEventObserver? = null
+
+    /**
+     * 观察 [ComposeWindow] 的生命周期并同步到本 Activity。
+     *
+     * 注意：
+     * - ComposeWindow 的 [ON_CREATE] 不同步：Activity 进入 onCreate 后
+     *   才会显示 ComposeWindow，此时 Activity 已处于 CREATED 状态。
+     * - ComposeWindow 销毁时移除监听，并结束 Activity 生命周期。
+     */
     internal val parentLifecycleObserver = object : LifecycleEventObserver {
         /**
          * 观察window的生命周期，并进行同步
@@ -165,11 +203,6 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
             lifecycleListener?.onStateChanged(source, event)
 //            logger.info("window lifecycle event: $event")
-            /*
-            * 有些生命周期事件不需要同步
-            * 1. onCreate状态: activity生成实例后会被调用attach方法,开始生命周期流程并进入onCreate状态,此后会显示compose window并同步compose window的生命周期状态.
-            * 因此,当同步compose window生命周期状态的时候,activity已经进入了onCreate状态,根本不需要同步compose window的onCreate状态.
-            */
             if (event != Lifecycle.Event.ON_CREATE) {
                 syncLife(event)
             }
@@ -178,30 +211,33 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
                 ON_PAUSE -> onPause()
                 ON_STOP -> onStop()
                 ON_DESTROY -> {
-                    //当窗口生命周期走到onDestroy状态,activity也就此关闭,因此不要再继续监听窗口的生命周期
+                    // 窗口已销毁，Activity 随之关闭，无需继续监听
                     source.lifecycle.removeObserver(this)
                     onDestroy()
                 }
 
                 ON_START -> onStart()
-                // on_create事件不需要同步
                 else -> {}
             }
         }
     }
 
     val stateSaver by inject<ApplicationSaveStateSaver>()
+
+    /** 启动本 Activity 的 [Intent]，通过弱引用持有。 */
     var intent by WeakReferenceDelegate<Intent>()
 
     @Suppress("LeakingThis")
     protected var lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this@Activity)
+
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
 
     /**
-     * 每个activity都有唯一的token,也就是id
-     * 使用此id关联保存的状态,以便下次启动后恢复状态
-     * 如果此id为null,则不使用状态保存和恢复功能
+     * 每个 Activity 的唯一标识，用于关联状态保存与恢复。
+     *
+     * 若 [intent] 携带 [Token]，则以该 Token 作为标识并启用状态保存/恢复；
+     * 否则使用基于类名的默认 Token，此时不启用状态保存/恢复。
      */
     internal val token: Token?
         get() = intent?.token
@@ -209,15 +245,18 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     private val finalId = Token(this::class.qualifiedName ?: this::class.hashCode().toString())
 
     /**
-     * 上面的token与状态保存和恢复相关,如果不需要使用状态保存和恢复功能,则token为null,
-     * 此时就无法使用token标识activity的唯一性了,因此需要一个回退字段标识唯一性.
+     * Activity 的稳定唯一标识。
+     *
+     * 优先使用 [token]；当 [token] 为 null（未启用状态保存/恢复）时，
+     * 退化为基于类名的 [finalId]，以保证标识始终非空。
      */
     protected val idn: Token get() = token ?: finalId
 
     /**
-     * 在[ApplicationSaveStateSaver]中使用token注册一个SaveState,用于存放所有需要保存的状态
-     * 状态栏会来自[onSaveInstanceState]、[SavedStateRegistry]等
-     * 调用此方法时需要确保已经给intent赋过值
+     * 当前 Activity 的状态容器。
+     *
+     * 状态来源包括 [onSaveInstanceState]、[SavedStateRegistry] 等。
+     * 仅当 [token] 不为 null（即启用了状态保存）时才有值，否则返回 null。
      */
     internal val savedState: SavedState?
         get() {
@@ -225,44 +264,44 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
             return stateSaver.obtain(id)
         }
 
-    /**
-     * activity实现了IContext接口
-     */
     val context get() = this
 
-    /**
-     * 仅作为一个调用[finish]方法的标志
-     */
+    /** 仅作为 [finish] 是否已被调用的标志，避免重复关闭。 */
     private var finished: Boolean = false
 
     /**
-     * 根视图,仅在单Application模式下有用
+     * 单 Application 模式下的根视图。
+     * 多 Application 模式下请使用 [multiApplicationToken]。
      */
     internal var rootViewEntity: ActivityRootViewEntity = ActivityRootViewEntity()
 
     /**
-     * 如果ComponentDialog配置为模态窗口,
-     * 则显示时会将ComponentDialog根布局插入到其宿主Activity的dialogsSlots中
+     * 当前 Activity 上挂载的模态 Dialog 根视图集合。
+     *
+     * 若 ComponentDialog 配置为模态窗口，显示时会把其根布局保存在此，
+     * 由宿主 Activity 的 Compose 作用域重组显示弹窗。
      */
     internal val dialogsMgr = RootViewMgr<Unit>()
 
     /**
-     * 调用[LinkComposeWindow]后,此变量用于记录当前的ComposeWindow
+     * 当前 [ComposeWindow] 实例，由 [LinkWindow] 赋值。
+     * 仅在窗口已显示时非 null。
      */
     var composeWindow: ComposeWindow? = null
         internal set
 
     /**
-     * 启用多Application特性启动Activity, 会使用独立的applicationScope显示根视图,
-     * 而不会将根视图放入WindowManager使用全局applicationScope显示.
-     * 你依旧可以使用finish结束此Activity,会连同独立的application一并销毁.
+     * 多 Application 特性相关令牌。
      *
-     * 此变量记录启动独立application信息
+     * 启用后 Activity 会使用独立的 applicationScope 显示根视图，
+     * 而非挂载到全局 WindowManager；调用 [finish] 时会连同独立
+     * application 一并销毁。
      */
     val multiApplicationToken: ApplicationScopeToken = ApplicationScopeToken(null)
 
     /**
-     * 在实现类中需调用Window,将Window中的visible参数指定为此变量才可生效
+     * 窗口可见性，供 [androidx.compose.ui.window.Window] 的 `visible` 参数使用。
+     * 需在 [setContent] 的 Window 中绑定此值，[show]/[hide] 才会生效。
      */
     var mVisibility by mutableStateOf(true)
 
@@ -270,32 +309,40 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
         lifecycleRegistry.currentState = Lifecycle.State.INITIALIZED
     }
 
+    /** 显示窗口（将 [mVisibility] 置为 true）。 */
     fun show() {
         mVisibility = true
     }
 
+    /** 隐藏窗口（将 [mVisibility] 置为 false），生命周期进入 [ON_PAUSE]。 */
     fun hide() {
         mVisibility = false
     }
 
     /**
-     * 1. activity将自己注册进[ActivityManager]
-     * 2. 开始自己的生命周期
-     * 3. 生成mWindow，并调用[onCreate]方法
+     * 将 Activity 附加到运行环境：
+     * 1. 注册到 ActivityManager；
+     * 2. 设置基础 [Context]；
+     * 3. 进入 [onCreate] 并开始生命周期流程。
+     *
+     * 由框架调用，业务代码不应直接调用。
+     *
+     * @param context 基础上下文
+     * @param intent  启动本 Activity 的 Intent
      */
     internal fun attach(
         context: Context,
         intent: Intent,
     ) {
         this.intent = intent
-        activityManager().register(idn, this@Activity)
         attachBaseContext(context)
+        // activityManager()调用前必须先attach context, 否则因为初始化报错
+        activityManager().register(idn, this@Activity)
         onCreate(savedState)
     }
 
     /**
-     * 观察Window的生命周期，并同步给activity的[lifecycleRegistry]
-     * 但是，不能同步[ON_DESTROY]状态，因为activity的生命周期理应比window更长。
+     * 将 Activity 的生命周期状态同步到 [event] 的目标状态。
      *
      * @param event 需要同步的生命周期事件
      */
@@ -305,15 +352,34 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     }
 
     /**
-     * Called when the activity is first created.
-     *
-     * @param data 启动此Activity附带的数据
+     * 首次创建时回调，在此调用 [setContent] 显示界面。
+     * ```
+     * override fun onCreate(savedInstanceState: SavedState?) {
+     *     super.onCreate(savedInstanceState)
+     *     setContent {
+     *         Window(
+     *             onCloseRequest = { hide() },
+     *             visible = mVisibility,
+     *         ) {
+     *             LinkWindow {
+     *                MaterialTheme{}
+     *             }
+     *         }
+     *     }
+     * }
+     * ```
+     * @param savedInstanceState 上次保存的状态，首次创建时为 null
      */
     @CallSuper
     open fun onCreate(savedInstanceState: SavedState?) {
         this.syncLife(ON_CREATE)
     }
 
+    /**
+     * 保存实例状态，将在 [onDestroy] 前被调用。
+     *
+     * @param outState 用于写入待保存状态的容器
+     */
     @CallSuper
     open fun onSaveInstanceState(outState: SavedState) {
 
@@ -322,28 +388,17 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     open fun onStart() {}
 
     /**
-     * 在子类onCreate函数中调用, 以显示窗口界面.
-     * 在此函数传入content内部需要调用[androidx.compose.ui.window.Window]才可使Activity显示窗口.
-     * 在调用Window函数传入的content内部需调用[LinkComposeWindow]才可使Activity链接ComposeWindow生命周期.
-     * ```
-     * open class MainActivity : Activity() {
-     *     override fun onCreate(savedInstanceState: SavedState?) {
-     *         super.onCreate(savedInstanceState)
-     *         setContent {
-     *              Window(
-     *                  onCloseRequest = { finish() },
-     *                  visible = mVisibility,
-     *              ) {
-     *                  Link2ComposeWindow {
-     *                      //界面
-     *                  }
-     *              }
-     *         }
-     *     }
-     * }
-     * ```
+     * 设置Activity根视图，需在 [onCreate] 中调用。
+     * 在此方法的content参数实现中必须调用[Window]才可显示窗口。
+     * 需要在[Window]中调用 [LinkWindow] 以建立与 [ComposeWindow] 生命周期的关联。
      *
-     * @param content 根视图
+     * 默认通过 WindowManager 的全局 application 显示；
+     * 若 [Intent.multiApplication] 为 true，则使用独立 application 显示。
+     *
+     * @param content 根视图，需内部调用 [androidx.compose.ui.window.Window]
+     *
+     * 用法：
+     * @see onCreate
      */
     protected open fun setContent(content: ApplicationComposableContent) {
         //如果使用多Application特性,则启动单独的application显示窗口
@@ -362,24 +417,35 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
                         }
                     )
                 } catch (ignore: InterruptedException) {
-
+                    // 线程被中断属于正常退出路径，忽略
                 }
             }
             multiApplicationToken.thread = thread
         } else {
-            // 如果未使用多application特性, 将根视图放入WindowManager的可观察列表,
-            // 促使全局ApplicationScope重组并显示此Activity根视图/窗口
+            // 未启用多 Application：将根视图放入 WindowManager 的可观察列表，
+            // 触发全局 ApplicationScope 重组并显示此 Activity 根视图/窗口
             this.rootViewEntity.rootContent = content
             windowManager().attachWindow(this@Activity.rootViewEntity)
         }
     }
 
     /**
-     * 1. 使Activity链接ComposeWindow生命周期
-     * 2. 向Compose子视图提供ViewModelStoreOwner、SaveStateRegister、SaveableStateRegister等组件
+     * 将当前 Activity 与所在 [ComposeWindow] 的生命周期绑定。
+     *
+     * 必须在 [androidx.compose.ui.window.Window] 的 `content` 中调用。
+     * 调用后会：
+     * - 注册 [parentLifecycleObserver] 以同步窗口生命周期；
+     * - 记录当前 [composeWindow]；
+     * - 提供 [LocalContext] 与 [ActivityLifecycleOwner]；
+     * - 渲染通过 [attachDialog] 挂载的弹窗。
+     *
+     * @param content 窗口内容
+     *
+     * 用法：
+     * @see onCreate
      */
     @Composable
-    protected open fun FrameWindowScope.LinkComposeWindow(content: @Composable FrameWindowScope.() -> Unit) {
+    protected open fun FrameWindowScope.LinkWindow(content: @Composable FrameWindowScope.() -> Unit) {
         //这里的lifecycle是composeContainer的提供的
         val lc: LifecycleOwner = LocalLifecycleOwner.current
         remember {
@@ -392,19 +458,19 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
         ) {
             content()
         }
-        //显示添加到Activity的弹窗
+        // 渲染通过 attachDialog 挂载的弹窗
         dialogsMgr.invoke(Unit)
     }
 
     /**
-     * 移除Dialog
+     * 卸载指定的 Dialog 根视图。
      */
     fun deAttachDialog(window: RootViewEntity<Unit>) {
         dialogsMgr.deAttach(window)
     }
 
     /**
-     * 添加一个要显示的Dialog
+     * 挂载一个待显示的 Dialog 根视图。
      */
     @Synchronized
     fun attachDialog(window: RootViewEntity<Unit>) {
@@ -412,9 +478,11 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     }
 
     /**
-     * 当为单例模式时，再次启动activity将回调此方法。
+     * 单例模式下，再次通过 Intent 启动本 Activity 时回调。
      *
-     * 但是此方法被触发之后，不会改变window或者activity的生命周期状态。
+     * 此回调不会改变 Window 或 Activity 的生命周期状态。
+     *
+     * @param intent 新的启动 Intent，可能为 null
      */
     @CallSuper
     open fun onReStart(intent: Intent? = null) {
@@ -434,31 +502,13 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     }
 
     /**
-     * ```
-     * Window(
-     *  onCloseRequest = { finish() },
-     *  visible = mVisibility,
-     * )
-     * ```
+     * 由窗口的生命周期同步触发，业务代码不应主动调用。
      *
-     * 1. 手动点击窗口的"X"关闭按钮, Window触发onCloseRequest回调, 调用finish函数
-     * 2. 直接调用finish函数
-     * 会触发如下流程：
-     * 调用WindowManager的deAttachWindow将rootContent移除，applicationScope重组，
-     * 承载着ComposeWindow的rootContent从重组树上被删除，不再显示。
-     * rootContent内部的ComposeWindow触发onDispose流程，ComposeWindow生命周期走到ON_DESTROY状态，
-     * 由于activity同步ComposeWindow的生命周期，于是activity也会进入[ON_DESTROY]状态，
-     * 并调用[onDestroy]方法, 移除WindowManager中注册的compose视图.
-     *
-     * 生命周期流程:
-     * activity -> observe and sync -> window lifecycle
-     * 即
-     * close application window -> window lifecycle update to ON_DESTROY
-     * -> activity sync window lifecycle -> activity lifecycle will set to ON_DESTROY and invoke onDestroy function
-     *
-     * 注:
-     *  1. 如果ComposeWindow已显示,则从WindowManager中移除compose视图(此视图函数中调用了Window函数)
-     *  2. 如果ComposeWindow未显示,则直接使生命周期进入ON_DESTROY
+     * 触发流程与功能
+     * 1. [finish] 将根视图从 WindowManager 移除，ApplicationScope 重组；
+     * 2. 承载 [ComposeWindow] 的根内容从重组树移除，触发 onDispose；
+     * 3. ComposeWindow 进入 [ON_DESTROY]，Activity 同步进入 [ON_DESTROY]；
+     * 4. 清理 ActivityManager 中的注册信息与弹窗。
      */
     @CallSuper
     open fun onDestroy() {
@@ -469,31 +519,32 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     }
 
     /**
-     * 点击窗口的 X 按钮,会触发Window的onCloseRequest回调, 在onCloseRequest中请调用finish方法,
+     * 关闭当前 Activity 并触发 [ON_DESTROY]。
+     * 此方法会将窗口函数从重组树上移除，使窗口结束生命周期。
      *
-     * 此方法将rootContent(内部会调用Window函数,使Activity追踪ComposeWindow生命周期)从WindowManager移除,
-     * 触发ApplicationScope重组,从而将承载Window的rootContent从重组树上移除，
-     * 触发ComposeWindow的onDispose流程
+     * 通常在 [androidx.compose.ui.window.Window] 的 `onCloseRequest`中调用，
+     * 或者任何需要关闭窗口的地方。
+     * ```
+     * Window(onCloseRequest = { finish() }, visible = mVisibility) { ... }
+     * ```
      *
-     * ```
-     * Window(
-     *  onCloseRequest = { finish() },
-     *  visible = mVisibility,
-     * )
-     * ```
+     * 处理逻辑：
+     * - 单 Application 且窗口已显示：从 WindowManager 移除根视图
+     * - 多 Application 且窗口已显示：销毁独立 application
+     * - 没有界面：直接将生命周期同步至 [ON_DESTROY]
      */
     @CallSuper
     open fun finish() {
         if (rootViewEntity.isAttached) {
-            //单Application下显示了窗口
+            // 单 Application 下已显示窗口
             windowManager().deAttachWindow(rootViewEntity)
             composeWindow = null
         } else {
-            //多application特性不仅启用了, 还显示了窗口界面
+            // 多 Application 特性启用且已显示窗口
             if (multiApplicationToken.isExist) {
                 multiApplicationToken.dismiss()
             } else {
-                //没有界面,直接将生命周期同步到ON_DESTROY
+                // 没有界面，直接将生命周期同步到 ON_DESTROY
                 syncLife(ON_DESTROY)
                 onDestroy()
             }
@@ -501,12 +552,23 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     }
 
     //<editor-fold desc="result callback">
+
+    /**
+     * 结果流，来自 [intent] 中的默认信箱 [DEFAULT_RESULT_FLOW]。
+     *
+     * @throws IllegalStateException 当 intent 为 null 或未提供结果信箱时抛出
+     */
     internal val internalResultFlow
         get() = intent?.getMailBox<ActivityResult>(DEFAULT_RESULT_FLOW)
             ?: throw IllegalStateException("activity_result_flow can't be null")
 
     /**
-     * @param resultCode 结果码，[Activity.SUCCESS]表示成功，[Activity.FAILED]表示失败
+     * 设置返回给启动方的结果。
+     *
+     * 结果通过 [Intent.activityResultFlow] 发送，`startActivityForResult`的回调即订阅此流。
+     *
+     * @param resultCode 结果码，[SUCCESS] 或 [FAILED]
+     * @param data       附加数据，可为 null
      */
     open fun setResult(resultCode: Int, data: Bundle? = null) {
         internalResultFlow.tryEmit(ActivityResult(resultCode, data))
@@ -515,8 +577,13 @@ abstract class Activity : ThemedContext(), LifecycleOwner, InstanceKoinComponent
     //</editor-fold>
 
     companion object {
+        /** 默认结果信箱的 key。 */
         const val DEFAULT_RESULT_FLOW = "activity_result_flow"
+
+        /** 成功结果码。 */
         const val SUCCESS = 1
+
+        /** 失败结果码。 */
         const val FAILED = 0
     }
 }

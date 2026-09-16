@@ -64,7 +64,7 @@ class TestFragmentActivity() : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             Window(onCloseRequest = { finish() }) {
-                LinkComposeWindow {
+                LinkWindow {
                     MaterialTheme {
                         val scrollState = rememberScrollState()
                         ScrollbarBox(
@@ -227,7 +227,7 @@ class TestDialog : ComponentDialog() {
                 },
                 visible = mVisibility.value,
             ) {
-                Link2ComposeDialogWindow {
+                LinkDialogWindow {
                     MaterialTheme {
                         Column {
                             Text("dialog：${dialogCount}")

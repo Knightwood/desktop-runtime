@@ -30,7 +30,7 @@ class SplashActivity : Activity() {
                     size = DpSize(300.dp, 300.dp)
                 )
             Window(onCloseRequest = { finish() }, state = state) {
-                LinkComposeWindow {
+                LinkWindow {
                     Text("启动页", fontSize = 64.sp)
                 }
             }

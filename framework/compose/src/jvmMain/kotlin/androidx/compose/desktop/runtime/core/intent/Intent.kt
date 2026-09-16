@@ -30,7 +30,6 @@ class LaunchActivityIntent : OperateIntent {
 
     /** 启动模式 */
     var launchMode: LaunchMode = LaunchMode.STANDARD
-        internal set
 
     /**
      * 启动activity携带的数据

@@ -12,11 +12,19 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import com.github.knightwood.slf4j.kotlin.kLogger
 import kotlin.reflect.KClass
-
+import androidx.compose.desktop.runtime.window.WindowManager
+import androidx.compose.ui.window.Window
 /**
  *
- * fragment不能用于承载顶层窗口,内部不会与[androidx.compose.desktop.runtime.window.WindowManager]关联，
- * 调用[androidx.compose.ui.window.Window]是无效的.
+ *
+ * fragment用于承载普通compose视图，必须在一个Activity、ComponentDialog的视图内部调用。
+ * 没有独立的生命周期，也无法作为一个独立组件使用。
+ *
+ * 作用：
+ * 1. 像Android中fragment那样拆解复杂的Activity视图
+ * 2. 提供与宿主同步的生命周期
+ * 3. 提供ViewModelStoreOwner、SaveStateRegister、SaveableStateRegister等组件
+ *
  *
  * fragment的用处在于分解Activity视图结构,比如首页导航栏上有3个按钮,也就表示有三个页面,
  * 每个页面又会通向其他页面,即这是三个独立或关联的导航树,
@@ -40,9 +48,11 @@ import kotlin.reflect.KClass
  *
  * 1. 生成实例
  * val a = Fragment1()
+ *
  * 2. 初始化,二选一
  * a.attach(Token("a1"),hostLifecycle)//绑定生命周期
  * a.attach(Token("a1"),null)//可以暂时不绑定生命周期,随后使用Fragment.attachHostLifecycle指定跟随的宿主生命周期
+ *
  * 3.显示界面
  * a.Screen()
  *

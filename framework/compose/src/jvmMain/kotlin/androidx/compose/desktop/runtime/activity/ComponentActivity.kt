@@ -19,88 +19,57 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 
 /**
- * 1. 数据的保存是在Activity的onSaveInstanceState()中调用了SavedStateRegistryController的performSave()方法来实现
- * 2. SavedStateRegistryController是SavedStateRegistry的控制类，关于数据的保存和恢复都转发给了该类处理，performSave()方法最终最后转交到SavedStateRegistry的performSave()中。
- * 3. performSave()主要是将需要保存的数据写入到Activity的Bundle对象实现
- * 4. 数据的恢复即在onCreate()调用了performRestore()方法，将保存的数据取出恢复
- * 5. 对于需要保存的数据，实现SavedStateProvider接口，注册一下需要保存的数据；取回数据时；外部通过使用和传给
- *    registerSavedStateProvider() 方法时一样的 key 来取数据，并在取了之后将数据从
- *    mRestoredState 中移除。
- * 6. ViewModel创建时默认已经实现了SavedStateProvider等接口，实现了数据保存时从ViewModel中获取数据，恢复时给ViewModel赋值。
  *
+ * 提供ViewModelStoreOwner、SaveStateRegister、SaveableStateRegister等组件，
+ * compose中的rememberSavable现可以正常工作
+ *
+ * 在ComponentActivity中获取ViewModel
  * ```
- * class TestViewModel(
+ * class TestViewModel1(
  *     val savedStateHandle: SavedStateHandle,
- *     val i: Int
- * ) : ViewModel() {
- * }
- *
- * open class TestActivity : ComponentActivity() {
- *     val randoms = Random.nextInt(0, 11)
- *     var tag = "Activity$randoms"
- *     private val logger = logFor(tag)
- *
- *     val one = object : CreationExtras.Key<Int> {}
- *     val vm: TestViewModel by viewModels<TestViewModel>(extrasProducer = {
- *         val extras = MutableCreationExtras()
- *         extras[one] = 2
- *         extras[SAVED_STATE_REGISTRY_OWNER_KEY] = this
- *         extras[VIEW_MODEL_STORE_OWNER_KEY] = this
- *         extras
- *     }, {
- *         object : ViewModelProvider.Factory {
- *             override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
- *                 return TestViewModel(
- *                     extras.createSavedStateHandle(),
- *                     extras[one] ?: 90
- *                 ) as T
- *             }
- *         }
- *     })
- *
- *      override fun onCreate() {
- *          super.onCreate()
- *          ComposeView(closeActivity = true) {
- *                 MaterialTheme {
- *                     // compose...
+ *     val i: Int,
+ * ) : ViewModel(){
+ *     companion object {
+ *         val key = object : CreationExtras.Key<Int> {}
+ *         val factory =
+ *             object : ViewModelProvider.Factory {
+ *                 override fun <T : ViewModel> create(
+ *                     modelClass: KClass<T>,
+ *                     extras: CreationExtras,
+ *                 ): T {
+ *                     return TestViewModel1(
+ *                         extras.createSavedStateHandle(),
+ *                         extras[key] ?: 90
+ *                     ) as T
  *                 }
- *          }
- *          logger.info("onCreate：vm参数：" + vm.i)
- *          logger.info("onCreate：vm：" + vm)
- *      }
- *
- *     override fun onReStart(intent: Intent?) {
- *         super.onReStart(intent)
- *         logger.info("onReStart")
- *     }
- *
- *     override fun onPause() {
- *         super.onPause()
- *         logger.info("onPause")
- *     }
- *
- *     override fun onResume() {
- *         super.onResume()
- *         logger.info("onResume")
- *     }
- *
- *     override fun onStart() {
- *         super.onStart()
- *         logger.info("onStart")
- *     }
- *
- *     override fun onStop() {
- *         super.onStop()
- *         logger.info("onStop")
- *     }
- *
- *     override fun onDestroy() {
- *         super.onDestroy()
- *         logger.info("onDestroy")
+ *             }
  *     }
  * }
+ *
+ * class TestViewModel2(
+ *     val savedStateHandle: SavedStateHandle,
+ * ) : ViewModel()
+ *
+ * val vm1: TestViewModel1 by viewModels<TestViewModel1>(extrasProducer = {
+ *      val extras = MutableCreationExtras()
+ *      extras[TestViewModel1.key] = intent?.getData<Int>("random") ?: 11//从 intent中读取数据
+ *      extras[SAVED_STATE_REGISTRY_OWNER_KEY] = this
+ *      extras[VIEW_MODEL_STORE_OWNER_KEY] = this
+ *      extras
+ *  }, { TestViewModel1.factory })
+ *
+ * val vm2 by viewModels<TestViewModel2>()
+ *
+ * val vm3 = ViewModelProvider.create(
+ *      owner = this,
+ *      creationExtras = mutableCreationExtrasOf {
+ *          this[TestViewModel1.key] = intent?.getData<Int>("random") ?: 11//从 intent中读取数据
+ *      },
+ *      factory = TestViewModel1.factory
+ *  )[TestViewModel1::class]
  *
  * ```
+ *
  */
 open class ComponentActivity : Activity(),
     ViewModelStoreOwner,
@@ -151,26 +120,9 @@ open class ComponentActivity : Activity(),
         super.onCreate(savedInstanceState)
     }
 
-//    override fun show() {
-//        if (mWindow.exit.value) {//已经退出，需要重建activity
-//            ActivityManager.register(uuid, this)
-//            lifecycleRegistry.handleLifecycleEvent(ON_CREATE)
-//            lifecycleRegistry.currentState = Lifecycle.State.CREATED
-//            mWindow.active()
-//        } else {
-//            lifecycleScope.launch {
-//                mWindow.isHidden.value = (false)
-//            }
-//        }
-//    }
 
     override fun onSaveInstanceState(outState: SavedState) {
         super.onSaveInstanceState(outState)
-//        val saved = window.saveState()
-//        if (saved != null) {
-//            outState.merge(saved)
-//            logger.info("onSaveInstanceState: window.saveState() is not null")
-//        }
         savedStateRegistryController.performSave(outState)
     }
 
@@ -199,10 +151,13 @@ open class ComponentActivity : Activity(),
     }
 
     /**
-     * 同步Compose Window的生命周期,为compose提供生命周期组件
+     * 调用[androidx.compose.ui.window.Window]时在传入的content函数中调用此函数
+     * 功能：
+     * 1. 使Activity链接ComposeWindow生命周期
+     * 2. 向Compose子视图提供ViewModelStoreOwner、SaveStateRegister、SaveableStateRegister等组件
      */
     @Composable
-    override fun FrameWindowScope.LinkComposeWindow(content: @Composable FrameWindowScope.() -> Unit){
+    override fun FrameWindowScope.LinkWindow(content: @Composable FrameWindowScope.() -> Unit){
         this@ComponentActivity.composeWindow = this.window
         //这里的lifecycle是composeContainer的提供的
         val lc: LifecycleOwner = LocalLifecycleOwner.current

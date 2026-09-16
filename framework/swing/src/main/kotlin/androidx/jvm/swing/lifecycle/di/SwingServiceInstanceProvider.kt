@@ -1,5 +1,6 @@
 package androidx.jvm.swing.lifecycle.di
 
+import androidx.jvm.swing.lifecycle.jFrame.IJFrameLauncher
 import androidx.jvm.swing.lifecycle.jFrame.JFrameLauncher
 import androidx.jvm.swing.lifecycle.jFrame.JFrameManager
 import androidx.jvm.system.di.ModuleProvider
@@ -14,6 +15,7 @@ import kotlinx.coroutines.swing.SwingDispatcher
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
 @AutoService(ModuleProvider::class)
@@ -22,7 +24,7 @@ class SwingServiceInstanceProvider : ModuleProvider {
     override fun provide(): Module {
         return module {
             singleOf(::JFrameManager)
-            single { get<JFrameManager>().launcherManager }
+            single { get<JFrameManager>().launcherManager }.bind<IJFrameLauncher>()
 
             single(named<JFrameManager>()) {
                 CoroutineScope(Dispatchers.Swing) + SupervisorJob() + CoroutineName("JFrameManager")
